@@ -1,0 +1,59 @@
+{
+  "udpPort" : 3501,
+  "httpPort" : "80",
+  "redisConnParas" : {
+    "port" :  "REDIS_CLUSTER_SVC_NP_SERVICE_PORT",
+    "host" :  "REDIS_CLUSTER_SVC_NP_SERVICE_HOST",
+    "password" : "",
+    "useAlone" : false
+  },
+  "mongoConnParas" : {
+    "port" : "MONGOS_SVC_SERVICE_PORT",
+    "host" : "MONGOS_SVC_SERVICE_HOST",
+    "userName" : "iotzigbeeserver",
+    "password" : "iotzigbeeserver",
+    "dbName" : "iotzigbeeserver"
+  },
+  "postgresConnParas" : {
+    "port" : "5432",
+    "host" : "localhost",
+    "userName" : "postgres",
+    "password" : "postgres",
+    "dbName" : "postgres",
+    "sslMode" : "disable"
+  },
+  "rabbitMQConnParas" : {
+    "port" :  "RABBITMQ_SERVICE_PORT",
+    "host" :  "RABBITMQ_SERVICE_HOST",
+    "userName" : "iotzigbeeserver",
+    "password" : "123456"
+  },
+  "mqttConnParas" : {
+    "port" :  "EMQTT_SERVICE_PORT",
+    "host" :  "EMQTT_SERVICE_HOST",
+    "userName" : "",
+    "password" : ""
+  },
+  "kafkaConnParas" : {
+    "host1" :  "KAFKA_SVC_0_SERVICE_HOST",
+    "port1" :  "KAFKA_SVC_0_SERVICE_PORT",
+    "host2" :  "KAFKA_SVC_1_SERVICE_HOST",
+    "port2" :  "KAFKA_SVC_1_SERVICE_PORT",
+    "host3" :  "KAFKA_SVC_2_SERVICE_HOST",
+    "port3" :  "KAFKA_SVC_2_SERVICE_PORT"
+  },
+  "multipleInstances" : false,
+  "memoryCacheMonitor" : false,
+  "usePostgres" : false,
+  "useRabbitMQ" : true,
+  "useKafka" : true,
+  "useMQTT" : true,
+  "iotware" : false,
+  "iotprivate" : true,
+  "iotedge" : false,
+  "logger" : {
+    "path" : "iotzigbeeserver.log",
+    "level" : "debug",
+    "store" : "postgres"
+  }
+}

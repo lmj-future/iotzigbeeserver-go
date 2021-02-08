@@ -1,0 +1,59 @@
+{
+  "udpPort" : 3501,
+  "httpPort" : "80",
+  "redisConnParas" : {
+    "port" :  "6379",
+    "host" :  "localhost",
+    "password" : "",
+    "useAlone" : true
+  },
+  "mongoConnParas" : {
+    "port" : "27017",
+    "host" : "localhost",
+    "userName" : "iotzigbeeserver",
+    "password" : "iotzigbeeserver",
+    "dbName" : "iotzigbeeserver"
+  },
+  "postgresConnParas" : {
+    "port" : "ENV_PUB_POSTGRESQL_PORT",
+    "host" : "ENV_PUB_POSTGRESQL_HOST",
+    "userName" : "postgres",
+    "password" : "postgres",
+    "dbName" : "postgres",
+    "sslMode" : "disable"
+  },
+  "rabbitMQConnParas" : {
+    "port" :  "5672",
+    "host" :  "localhost",
+    "userName" : "guest",
+    "password" : "guest"
+  },
+  "mqttConnParas" : {
+    "port" :  "1887",
+    "host" :  "iotware",
+    "userName" : "internal-server",
+    "password" : "internal@Passw0rd@"
+  },
+  "kafkaConnParas" : {
+    "host1" :  "localhost",
+    "port1" :  "9092",
+    "host2" :  "localhost",
+    "port2" :  "9092",
+    "host3" :  "localhost",
+    "port3" :  "9092"
+  },
+  "multipleInstances" : false,
+  "memoryCacheMonitor" : false,
+  "usePostgres" : true,
+  "useRabbitMQ" : false,
+  "useKafka" : false,
+  "useMQTT" : true,
+  "iotware" : true,
+  "iotprivate" : false,
+  "iotedge" : false,
+  "logger" : {
+    "path" : "iotzigbeeserver.log",
+    "level" : "debug",
+    "store" : "postgres"
+  }
+}
