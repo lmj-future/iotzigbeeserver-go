@@ -14,7 +14,7 @@ func measurementProcAttribute(terminalInfo config.TerminalInfo, attributeName st
 		// PM25 := attribute.Value.(uint64)
 	case "PM10MeasuredValue":
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"measurementProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "measurementProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -41,15 +41,11 @@ func measurementProcReport(terminalInfo config.TerminalInfo, command interface{}
 
 // MeasurementProc 处理clusterID 0x0415属性消息
 func MeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][MeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][MeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		measurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		measurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][MeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

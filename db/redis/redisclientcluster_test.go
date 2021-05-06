@@ -58,7 +58,7 @@ func TestCluster(t *testing.T) {
 }
 
 func TestNewClusterClient(t *testing.T) {
-	rdb, err := NewClusterClient("127.0.0.1", "6379", "")
+	rdb, err := NewClusterClient([]string{"127.0.0.1:6379"}, "")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

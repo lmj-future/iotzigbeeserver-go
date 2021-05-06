@@ -22,8 +22,7 @@ import (
 )
 
 func firstlyGetTerminalEndpoint(jsonInfo publicstruct.JSONInfo, devEUI string) {
-	var terminalInfo = publicfunction.GetTerminalInfo(jsonInfo, devEUI)
-	publicfunction.GetTerminalEndpoint(terminalInfo)
+	publicfunction.GetTerminalEndpoint(publicfunction.GetTerminalInfo(jsonInfo, devEUI))
 }
 
 func secondlyReadBasicByEndpoint(devEUI string, ActiveEPCount string, ActiveEPList string) {
@@ -47,17 +46,11 @@ func secondlyReadBasicByEndpoint(devEUI string, ActiveEPCount string, ActiveEPLi
 		var setData = config.TerminalInfo{}
 		setData.Endpoint = endpointArray
 		setData.EndpointCount = len(endpointArray)
-		// if terminalInfo.FirmTopic == "8001d001" && terminalInfo.TmnType == constant.Constant.TMNTYPE.SWITCH.ZigbeeTerminalQuadrupleSwitch {
-		// 	//针对狄耐克厂商的四联开关做特殊处理
-		// 	var temp = setData.Endpoint[1]
-		// 	setData.Endpoint[1] = setData.Endpoint[2]
-		// 	setData.Endpoint[2] = temp
-		// }
 		setData.UpdateTime = time.Now()
 		_, err = models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, setData)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+devEUI+" "+"secondlyReadBasicByEndpoint FindTerminalAndUpdate err : ", err)
+		globallogger.Log.Errorln("devEUI :", devEUI, "secondlyReadBasicByEndpoint FindTerminalAndUpdate err :", err)
 		return
 	}
 	endpointIndex := 0
@@ -66,20 +59,19 @@ func secondlyReadBasicByEndpoint(devEUI string, ActiveEPCount string, ActiveEPLi
 			endpointIndex = index
 		}
 	}
-	terminalInfo := config.TerminalInfo{
-		DevEUI: devEUI,
-	}
-	cmd := common.Command{
-		DstEndpointIndex: endpointIndex,
-	}
-	zclDownMsg := common.ZclDownMsg{
-		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
-		DevEUI:      devEUI,
-		CommandType: common.ReadBasic,
-		ClusterID:   0x0000,
-		Command:     cmd,
-	}
-	zclmain.ZclMain(globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent, terminalInfo, zclDownMsg, "", "", nil)
+	zclmain.ZclMain(globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+		config.TerminalInfo{
+			DevEUI: devEUI,
+		},
+		common.ZclDownMsg{
+			MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+			DevEUI:      devEUI,
+			CommandType: common.ReadBasic,
+			ClusterID:   0x0000,
+			Command: common.Command{
+				DstEndpointIndex: endpointIndex,
+			},
+		}, "", "", nil)
 }
 
 func thirdlyDiscoveryByEndpointFor(terminalInfo config.TerminalInfo, endpoint string) {
@@ -89,7 +81,7 @@ func thirdlyDiscoveryByEndpointFor(terminalInfo config.TerminalInfo, endpoint st
 func thirdlyDiscoveryByEndpoint(devEUI string, setData config.TerminalInfo, terminalInfo config.TerminalInfo) {
 	_, err := models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, setData)
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+devEUI+" "+"thirdlyDiscoveryByEndpoint FindTerminalAndUpdate err : ", err)
+		globallogger.Log.Errorln("devEUI :", devEUI, "thirdlyDiscoveryByEndpoint FindTerminalAndUpdate err :", err)
 		return
 	}
 	for _, item := range setData.Endpoint {
@@ -100,7 +92,7 @@ func thirdlyDiscoveryByEndpoint(devEUI string, setData config.TerminalInfo, term
 func thirdlyDiscoveryByEndpointPG(devEUI string, oSet map[string]interface{}, terminalInfo config.TerminalInfo) {
 	_, err := models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, oSet)
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+devEUI+" "+"thirdlyDiscoveryByEndpointPG FindTerminalAndUpdatePG err : ", err)
+		globallogger.Log.Errorln("devEUI :", devEUI, "thirdlyDiscoveryByEndpointPG FindTerminalAndUpdatePG err :", err)
 		return
 	}
 	for _, item := range oSet["endpointpg"].(pq.StringArray) {
@@ -111,7 +103,6 @@ func thirdlyDiscoveryByEndpointPG(devEUI string, oSet map[string]interface{}, te
 func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, manufacturerName string, endpoint string) []string {
 	var clusterIDArray = []string{}
 	deviceID, _ := strconv.ParseUint(DeviceID, 16, 16)
-	clusterID := ""
 	switch uint16(deviceID) {
 	case cluster.SmartPlugDevice.DeviceID,
 		cluster.OnOffOutputDevice.DeviceID:
@@ -120,17 +111,11 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 			switch tmnType {
 			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
 				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.SmartEnergyMetering), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.ElectricalMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006", "0702", "0b04")
 			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
 				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
 				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006")
 			}
 		case constant.Constant.MANUFACTURERNAME.Honyar:
 			switch tmnType {
@@ -140,55 +125,38 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006")
 			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.SmartEnergyMetering), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.ElectricalMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006", "0702", "0b04")
 			}
 		default:
-			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName: ", manufacturerName)
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
+			clusterIDArray = append(clusterIDArray, "0006")
 		}
 	case cluster.SceneSelectorDevice.DeviceID: //情景面板
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+			clusterIDArray = append(clusterIDArray, "0001")
 		case constant.Constant.MANUFACTURERNAME.Honyar:
 		default:
-			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName: ", manufacturerName)
+			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
 		}
 	case cluster.RemoteControlDevice.DeviceID: //远程控制器
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-			// clusterID = "0000" + strconv.FormatUint(uint64(cluster.HEIMANInfraredRemote), 16)
-			// clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+			clusterIDArray = append(clusterIDArray, "0001")
 		}
 	case cluster.OnOffLightDevice.DeviceID: //灯光面板
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+		clusterIDArray = append(clusterIDArray, "0006")
 	case cluster.MainsPowerOutletDevice.DeviceID: //智能插座
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
 			switch tmnType {
 			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.SmartEnergyMetering), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.ElectricalMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006", "0702", "0b04")
 			}
 		case constant.Constant.MANUFACTURERNAME.Honyar:
 			switch tmnType {
@@ -196,38 +164,27 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
 				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.SmartEnergyMetering), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.ElectricalMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0006", "0702", "0b04")
 			}
 		default:
-			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName: ", manufacturerName)
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.OnOff), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
+			clusterIDArray = append(clusterIDArray, "0006")
 		}
 	case cluster.SceneSelectorDevice.DeviceID: //场景面板
 	case cluster.OnOffLightSwitchDevice.DeviceID: //灯光联动面板
 	case cluster.OccupancySensorDevice.DeviceID: //占位传感器
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASZone), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+		clusterIDArray = append(clusterIDArray, "0001", "0500")
 	case cluster.WindowCoveringDeviceDevice.DeviceID: //窗帘
 		// clusterID = "0000" + strconv.FormatUint(uint64(cluster.WindowCovering), 16)
 		// clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
 	case cluster.WindowCoveringControllerDevice.DeviceID: //辅助开关
 	case cluster.IasZoneDevice.DeviceID: //紧急按钮、门磁、人体探测器、燃气泄漏、水浸探测、烟火探测
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASZone), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+		clusterIDArray = append(clusterIDArray, "0500")
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
 			if tmnType != constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30 &&
 				tmnType != constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM {
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0001")
 			}
 		}
 	case cluster.TemperatureSensorDevice.DeviceID: //温湿度探测器
@@ -235,86 +192,48 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
 			if tmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM {
 				if endpoint == "01" {
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.TemperatureMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+					clusterIDArray = append(clusterIDArray, "0001", "0402")
 				} else if endpoint == "02" {
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.RelativeHumidityMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+					clusterIDArray = append(clusterIDArray, "0405")
 				}
 			} else if tmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM {
 				if endpoint == "01" {
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.TemperatureMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.RelativeHumidityMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.HEIMANPM25Measurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.HEIMANFormaldehydeMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-					clusterID = "0000" + strconv.FormatUint(uint64(cluster.HEIMANAirQualityMeasurement), 16)
-					clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+					clusterIDArray = append(clusterIDArray, "0001", "0402", "0405", "042a", "042b", "fc81")
 				} else if endpoint == "f2" {
 					clusterIDArray = append(clusterIDArray, "0021")
 				}
 			}
 		default:
-			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName: ", manufacturerName)
+			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
 			if tmnType == constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalHumitureDetector {
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASZone), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.TemperatureMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.RelativeHumidityMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0500", "0001", "0402", "0405")
 			} else if tmnType == constant.Constant.TMNTYPE.MAILEKE.ZigbeeTerminalPMT1004Detector {
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.TemperatureMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-				clusterID = "0000" + strconv.FormatUint(uint64(cluster.RelativeHumidityMeasurement), 16)
-				clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+				clusterIDArray = append(clusterIDArray, "0001", "0402", "0405")
 			}
 		}
 	case cluster.IasWarningDevice.DeviceID: //声光探测
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASZone), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASWarningDevice), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
+			clusterIDArray = append(clusterIDArray, "0500", "0502")
 		default:
-			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName: ", manufacturerName)
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASZone), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-			clusterID = "0000" + strconv.FormatUint(uint64(cluster.IASWarningDevice), 16)
-			clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:], "ffff")
+			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
+			clusterIDArray = append(clusterIDArray, "0500", "ffff")
 		}
 	case 0xc000: //狄耐克红外宝
 		clusterIDArray = append(clusterIDArray, "fc01")
 	case 0x0061: //麦乐克PM2.5检测仪
 		clusterIDArray = append(clusterIDArray, "fe02")
 	case 0x0309: //狄耐克PM2.5检测仪
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.PowerConfiguration), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.TemperatureMeasurement), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:])
-		clusterID = "0000" + strconv.FormatUint(uint64(cluster.RelativeHumidityMeasurement), 16)
-		clusterIDArray = append(clusterIDArray, clusterID[len(clusterID)-4:], "0415")
+		clusterIDArray = append(clusterIDArray, "0001", "0402", "0415")
 	default:
-		globallogger.Log.Warnln("getClusterIDByDeviceID unknow deviceID: ", deviceID)
+		globallogger.Log.Warnln("getClusterIDByDeviceID unknow deviceID:", deviceID)
 	}
 	return clusterIDArray
 }
 
-func procNeedntBindTerminal(terminalInfo config.TerminalInfo) {
+func procTerminalOnlineToAPP(terminalInfo config.TerminalInfo, jsonInfo publicstruct.JSONInfo) {
 	if terminalInfo.IsExist {
-		publicfunction.TerminalOnline(terminalInfo.DevEUI, false)
+		publicfunction.TerminalOnline(terminalInfo.DevEUI, true)
 		if constant.Constant.Iotware {
 			iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
 		} else if constant.Constant.Iotedge {
@@ -323,24 +242,94 @@ func procNeedntBindTerminal(terminalInfo config.TerminalInfo) {
 	} else {
 		if constant.Constant.Iotedge {
 			go iotsmartspace.ActionInsertReply(terminalInfo)
+			publicfunction.TerminalOnline(terminalInfo.DevEUI, true)
+		} else if constant.Constant.Iotprivate {
+			tmnTypeInfo := publicfunction.HTTPRequestTerminalTypeByAlias(terminalInfo.ManufacturerName + "_" + terminalInfo.TmnType)
+			if tmnTypeInfo != nil {
+				type tmnList struct {
+					TmnName   string `json:"tmnName"`
+					TmnDevSN  string `json:"tmnDevSN"`
+					AddSource string `json:"addSource"`
+				}
+				type tmnInfo struct {
+					FirmName     string    `json:"firmName"`
+					TerminalType string    `json:"terminalType"`
+					SceneID      string    `json:"sceneID"`
+					TenantID     string    `json:"tenantID"`
+					TmnList      []tmnList `json:"tmnList"`
+				}
+				tmnInfoTemp := tmnInfo{
+					FirmName:     tmnTypeInfo.FirmName,
+					TerminalType: tmnTypeInfo.TerminalType,
+					SceneID:      jsonInfo.TunnelHeader.VenderInfo.VenderID,
+					TenantID:     jsonInfo.TunnelHeader.UserNameInfo.UserName,
+					TmnList: []tmnList{
+						{
+							TmnName:   terminalInfo.TmnName,
+							TmnDevSN:  terminalInfo.DevEUI,
+							AddSource: "自动上线",
+						},
+					},
+				}
+				tmnInfoByte, _ := json.Marshal(tmnInfoTemp)
+				if publicfunction.HTTPRequestAddTerminal(terminalInfo.DevEUI, tmnInfoByte) {
+					httpTerminalInfo := publicfunction.HTTPRequestTerminalInfo(terminalInfo.DevEUI, "ZHA")
+					if httpTerminalInfo != nil {
+						if constant.Constant.UsePostgres {
+							oSet := make(map[string]interface{}, 7)
+							oSet["oidindex"] = httpTerminalInfo.TmnOIDIndex
+							oSet["scenarioid"] = httpTerminalInfo.SceneID
+							oSet["userName"] = httpTerminalInfo.TenantID
+							oSet["firmtopic"] = httpTerminalInfo.FirmTopic
+							oSet["profileid"] = httpTerminalInfo.LinkType
+							oSet["tmntype2"] = httpTerminalInfo.TmnType
+							oSet["isexist"] = true
+							models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSet)
+							oSet = nil
+						} else {
+							var setData = config.TerminalInfo{}
+							setData.OIDIndex = httpTerminalInfo.TmnOIDIndex
+							setData.ScenarioID = httpTerminalInfo.SceneID
+							setData.UserName = httpTerminalInfo.TenantID
+							setData.FirmTopic = httpTerminalInfo.FirmTopic
+							setData.ProfileID = httpTerminalInfo.LinkType
+							setData.TmnType2 = httpTerminalInfo.TmnType
+							setData.IsExist = true
+							models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, setData)
+						}
+						publicfunction.TerminalOnline(terminalInfo.DevEUI, true)
+					}
+				} else {
+					globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "procTerminalOnlineToAPP HTTPRequestAddTerminal nil")
+					publicfunction.SendTerminalLeaveReq(jsonInfo, terminalInfo.DevEUI)
+					return
+				}
+			} else {
+				globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "procTerminalOnlineToAPP HTTPRequestTerminalTypeByAlias nil")
+				publicfunction.SendTerminalLeaveReq(jsonInfo, terminalInfo.DevEUI)
+				return
+			}
 		}
 	}
 	if publicfunction.CheckTerminalIsSensor(terminalInfo.DevEUI, terminalInfo.TmnType) {
 		go sensorSendWriteReq(terminalInfo)
 	}
-	publicfunction.TerminalOnline(terminalInfo.DevEUI, true)
-	go func() {
-		select {
-		case <-time.After(time.Duration(2) * time.Second):
+	if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM {
+		iotsmartspace.ProcHEIMANHTEM(terminalInfo, 1)
+	} else {
+		go func() {
+			timer := time.NewTimer(10 * time.Second)
+			<-timer.C
 			iotsmartspace.ActionInsertSuccess(terminalInfo)
-		}
-	}()
+			timer.Stop()
+		}()
+	}
 }
 
 func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, ProfileID string, DeviceID string,
-	clusterIDInArray []string, clusterIDOutArray []string, Endpoint string) (*config.TerminalInfo, error) {
+	clusterIDInArray []string, clusterIDOutArray []string, Endpoint string, jsonInfo publicstruct.JSONInfo) (*config.TerminalInfo, error) {
 	bindInfoTemp := []config.BindInfo{}
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 		bindInfoTemp = make([]config.BindInfo, len(endpointTemp))
@@ -391,7 +380,6 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 			break
 		}
 	}
-	// globallogger.Log.Infoln("devEUI : " + devEUI + " " + "updateTerminalBindInfo setData: " + fmt.Sprintf("%+v", setData))
 	var terminalInfoRes *config.TerminalInfo
 	var err error
 	if constant.Constant.UsePostgres {
@@ -413,13 +401,13 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 					constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
 					constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
 					constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-					procNeedntBindTerminal(terminalInfo)
+					procTerminalOnlineToAPP(terminalInfo, jsonInfo)
 				default:
 					go func() {
-						select {
-						case <-time.After(time.Second):
-							publicfunction.SendBindTerminalReq(terminalInfo)
-						}
+						timer := time.NewTimer(time.Second)
+						<-timer.C
+						publicfunction.SendBindTerminalReq(terminalInfo)
+						timer.Stop()
 					}()
 				}
 			} else {
@@ -434,10 +422,10 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 					}
 				}
 				go func() {
-					select {
-					case <-time.After(time.Duration(2) * time.Second):
-						iotsmartspace.ActionInsertSuccess(terminalInfo)
-					}
+					timer := time.NewTimer(2 * time.Second)
+					<-timer.C
+					iotsmartspace.ActionInsertSuccess(terminalInfo)
+					timer.Stop()
 				}()
 			}
 		}
@@ -446,7 +434,7 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 }
 
 func lastlyUpdateBindInfo(devEUI string, terminalInfo config.TerminalInfo, ProfileID string, DeviceID string, numInClusters int,
-	InClusterList string, numOutClusters int, OutClusterList string, Endpoint string) (*config.TerminalInfo, error) {
+	InClusterList string, numOutClusters int, OutClusterList string, Endpoint string, jsonInfo publicstruct.JSONInfo) (*config.TerminalInfo, error) {
 	var clusterIDInArray = []string{}
 	var clusterIDOutArray = []string{}
 	for i := 0; i < numInClusters; i++ {
@@ -457,6 +445,6 @@ func lastlyUpdateBindInfo(devEUI string, terminalInfo config.TerminalInfo, Profi
 		clusterIDOutArray = append(clusterIDOutArray, OutClusterList[0:4])
 		OutClusterList = OutClusterList[4:]
 	}
-	terminalInfoRes, err := updateTerminalBindInfo(devEUI, terminalInfo, ProfileID, DeviceID, clusterIDInArray, clusterIDOutArray, Endpoint)
+	terminalInfoRes, err := updateTerminalBindInfo(devEUI, terminalInfo, ProfileID, DeviceID, clusterIDInArray, clusterIDOutArray, Endpoint, jsonInfo)
 	return terminalInfoRes, err
 }

@@ -2,6 +2,7 @@ package securityandsafety
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/globalsign/mgo/bson"
 	"github.com/h3c/iotzigbeeserver-go/config"
@@ -11,6 +12,7 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalmsgtype"
 	"github.com/h3c/iotzigbeeserver-go/interactmodule/iotsmartspace"
 	"github.com/h3c/iotzigbeeserver-go/models"
+	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 	"github.com/h3c/iotzigbeeserver-go/publicstruct"
 	"github.com/h3c/iotzigbeeserver-go/zcl/common"
 	"github.com/h3c/iotzigbeeserver-go/zcl/keepalive"
@@ -25,18 +27,15 @@ func iasZoneProcWriteRsp(terminalInfo config.TerminalInfo, command interface{}) 
 	Command := command.(*cluster.WriteAttributesResponse)
 	globallogger.Log.Infof("[devEUI: %v][iasZoneProcWriteRsp]: command: %+v", terminalInfo.DevEUI, Command)
 	if Command.WriteAttributeStatuses[0].Status == cluster.ZclStatusSuccess {
-		// globallogger.Log.Infof("[devEUI: %v][iasZoneProcWriteRsp]: WriteAttributeStatuses: %+v", terminalInfo.DevEUI, Command.WriteAttributeStatuses[0])
-		cmd := common.Command{
-			DstEndpointIndex: 0,
-		}
-		zclDownMsg := common.ZclDownMsg{
+		zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 			MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 			DevEUI:      terminalInfo.DevEUI,
 			CommandType: common.SensorEnrollRsp,
 			ClusterID:   0x0500,
-			Command:     cmd,
-		}
-		zclmsgdown.ProcZclDownMsg(zclDownMsg)
+			Command: common.Command{
+				DstEndpointIndex: 0,
+			},
+		})
 	}
 }
 
@@ -183,19 +182,6 @@ func iasZoneProcZoneStatusChangeNotificationTamper(terminalInfo config.TerminalI
 func iasZoneProcZoneStatusChangeNotification(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ZoneStatusChangeNotificationCommand)
 	globallogger.Log.Infof("[devEUI: %v][iasZoneProcZoneStatusChangeNotification]: command: %+v", terminalInfo.DevEUI, Command)
-	type ZoneStatus struct {
-		data           uint16
-		alarm1         uint16
-		alarm2         uint16
-		tamper         uint16
-		battery        uint16
-		supervisionRpt uint16
-		restoreRpt     uint16
-		trouble        uint16
-		ACMains        uint16
-		test           uint16
-		batteryDefect  uint16
-	}
 	attribute := config.Attribute{
 		ZoneStatusChangeNotification: config.ZoneStatusChangeNotification{
 			ZoneStatus: config.ZoneStatus{
@@ -216,7 +202,6 @@ func iasZoneProcZoneStatusChangeNotification(terminalInfo config.TerminalInfo, c
 			Delay:          Command.Delay,
 		},
 	}
-	// globallogger.Log.Infof("[devEUI: %v][iasZoneProcZoneStatusChangeNotification]: update terminal info: attribute %+v", terminalInfo.DevEUI, attribute)
 	var tmnInfo *config.TerminalInfo
 	var err error
 	if constant.Constant.UsePostgres {
@@ -229,7 +214,6 @@ func iasZoneProcZoneStatusChangeNotification(terminalInfo config.TerminalInfo, c
 		return
 	}
 	if tmnInfo != nil {
-		// globallogger.Log.Infof("[devEUI: %v][iasZoneProcZoneStatusChangeNotification]: get terminal info success tmnInfo %+v", terminalInfo.DevEUI, tmnInfo)
 		if tmnInfo.Attribute.ZoneStatusChangeNotification.ZoneStatus.Alarm1 != attribute.ZoneStatusChangeNotification.ZoneStatus.Alarm1 {
 			iasZoneProcZoneStatusChangeNotificationAlarm1(terminalInfo, attribute.ZoneStatusChangeNotification.ZoneStatus.Alarm1)
 		}
@@ -249,37 +233,34 @@ func iasZoneProcZoneStatusChangeNotification(terminalInfo config.TerminalInfo, c
 	} else {
 		models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, bson.M{"attribute": attribute})
 	}
+	if tmnInfo != nil {
+		var keyBuilder strings.Builder
+		if tmnInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			keyBuilder.WriteString(tmnInfo.APMac)
+			keyBuilder.WriteString(tmnInfo.ModuleID)
+			keyBuilder.WriteString(tmnInfo.NwkAddr)
+		} else {
+			keyBuilder.WriteString(tmnInfo.APMac)
+			keyBuilder.WriteString(tmnInfo.ModuleID)
+			keyBuilder.WriteString(tmnInfo.DevEUI)
+		}
+		publicfunction.DeleteTerminalInfoListCache(keyBuilder.String())
+	}
 }
 
 // iasZoneProcZoneEnrollReq 处理command generated ZoneEnrollRequest消息
 func iasZoneProcZoneEnrollReq(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ZoneEnrollCommand)
 	globallogger.Log.Infof("[devEUI: %v][iasZoneProcZoneEnrollReq]: command: %+v", terminalInfo.DevEUI, Command)
-	cmd := common.Command{
-		DstEndpointIndex: 0,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.SensorEnrollRsp,
 		ClusterID:   0x0500,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
-}
-
-func procIASZoneProcRead(devEUI string, dstEndpointIndex int, clusterID uint16) {
-	cmd := common.Command{
-		DstEndpointIndex: dstEndpointIndex,
-	}
-	zclDownMsg := common.ZclDownMsg{
-		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
-		DevEUI:      devEUI,
-		CommandType: common.ReadAttribute,
-		ClusterID:   clusterID,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: 0,
+		},
+	})
 }
 
 func iasZoneProcKeepAlive(devEUI string, tmnType string, interval uint16) {
@@ -314,21 +295,17 @@ func iasZoneProcConfigureReportingResponse(terminalInfo config.TerminalInfo, com
 
 // IASZoneProc 处理clusterID 0x0500即IASZone属性消息
 func IASZoneProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][IASZoneProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][IASZoneProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame.Command)
 	switch zclFrame.CommandName {
-	case "ReadAttributesResponse":
 	case "WriteAttributesResponse":
 		iasZoneProcWriteRsp(terminalInfo, zclFrame.Command)
-	case "DefaultResponse":
-	case "ZoneStatusChangeNotification":
-		iasZoneProcZoneStatusChangeNotification(terminalInfo, zclFrame.Command)
-	case "ZoneEnrollRequest":
-		iasZoneProcZoneEnrollReq(terminalInfo, zclFrame.Command)
 	case "ConfigureReportingResponse":
 		iasZoneProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
 	case "ReportAttributes":
 		iasZoneProcReport(terminalInfo, zclFrame.Command)
+	case "ZoneStatusChangeNotification":
+		iasZoneProcZoneStatusChangeNotification(terminalInfo, zclFrame.Command)
+	case "ZoneEnrollRequest":
+		iasZoneProcZoneEnrollReq(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][IASZoneProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

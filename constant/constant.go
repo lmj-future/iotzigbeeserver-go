@@ -29,10 +29,11 @@ type Constants struct {
 type Kafka struct {
 	ZigbeeKafkaGroupName string
 
-	ZigbeeKafkaConsumeTopicBuildInPropertyByCustom string
-	ZigbeeKafkaConsumeTopicBuildInProperty         string
-	ZigbeeKafkaConsumeTopicDelTerminal             string
-	ZigbeeKafkaConsumeTopicUpdateTerminal          string
+	ZigbeeKafkaConsumeTopicBuildInPropertyByCustom               string
+	ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent string
+	ZigbeeKafkaConsumeTopicBuildInProperty                       string
+	ZigbeeKafkaConsumeTopicDelTerminal                           string
+	ZigbeeKafkaConsumeTopicUpdateTerminal                        string
 
 	ZigbeeKafkaProduceTopicConfirmMessage        string
 	ZigbeeKafkaProduceTopicCollihighSensorDataUp string
@@ -45,6 +46,8 @@ type Redis struct {
 	ZigbeeRedisDownMsgSets           string
 	ZigbeeRedisDuplicationFlagSets   string
 	ZigbeeRedisPermitJoinContentSets string
+	ZigbeeRedisKeepAliveTimerSets    string
+	ZigbeeRedisTerminalTimerSets     string
 	ZigbeeRedisCtrlMsgKey            string
 	ZigbeeRedisDataMsgKey            string
 	ZigbeeRedisDuplicationFlagKey    string
@@ -258,6 +261,7 @@ func init() {
 
 	Constant.KAFKA.ZigbeeKafkaGroupName = "iotzigbeeserver_kafka"
 	Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom = "custom2iotterminalmgr2buildInProperty2ZigBee"
+	Constant.KAFKA.ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent = "iottransparent2setTransConfiguration2ZigBee"
 	Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInProperty = "iotterminalmgr2buildInProperty2ZigBee"
 	Constant.KAFKA.ZigbeeKafkaConsumeTopicDelTerminal = "iotterminalmgr2delTerminal"
 	Constant.KAFKA.ZigbeeKafkaConsumeTopicUpdateTerminal = "iotterminalmgr2updateTerminal"
@@ -269,6 +273,8 @@ func init() {
 	Constant.REDIS.ZigbeeRedisDownMsgSets = "zigbee_down_msg"
 	Constant.REDIS.ZigbeeRedisDuplicationFlagSets = "zigbee_duplication_flag"
 	Constant.REDIS.ZigbeeRedisPermitJoinContentSets = "zigbee_permit_join_content"
+	Constant.REDIS.ZigbeeRedisKeepAliveTimerSets = "zigbee_keepalive_timer_sets"
+	Constant.REDIS.ZigbeeRedisTerminalTimerSets = "zigbee_terminal_timer_sets"
 	Constant.REDIS.ZigbeeRedisCtrlMsgKey = "zigbee_down_ctrl_msg_"
 	Constant.REDIS.ZigbeeRedisDataMsgKey = "zigbee_down_data_msg_"
 	Constant.REDIS.ZigbeeRedisDuplicationFlagKey = "zigbee_duplication_flag_"
@@ -304,7 +310,7 @@ func init() {
 	Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalHS2SW3LEFR30 = (10 * 60)
 	Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalSceneSwitchEM30 = (60 * 60)
 	Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalDoorSensorEF30 = (60 * 60)
-	Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalIRControlEM = (60 * 60)
+	Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalIRControlEM = (10 * 60)
 
 	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalSingleSwitch00500c32 = (10 * 60)
 	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalDoubleSwitch00500c33 = (10 * 60)

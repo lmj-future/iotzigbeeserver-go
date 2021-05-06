@@ -10,22 +10,21 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalmsgtype"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalsocket"
+	"github.com/h3c/iotzigbeeserver-go/metrics"
 	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 )
 
 //BindUDPPort BindUDPPort
 func BindUDPPort(rcvUDPMsgport int) {
 	globalsocket.ServiceSocket = dgram.CreateUDPSocket(rcvUDPMsgport)
-	//globalsocket.ServiceSocket.Bind(rcvUDPMsgport)
 }
 
 func checkUDPMsgIsLegal(msg []byte) bool {
-	//var frameLen = parseInt(msg.slice(2, 4).toString('hex'), 16);
-	frameLen, _ := strconv.ParseInt(hex.EncodeToString(msg[2:4]), 16, 0) //string转int
+	frameLen, _ := strconv.ParseInt(hex.EncodeToString(append(msg[:0:0], msg[2:4]...)), 16, 0) //string转int
 	if int(frameLen) == len(msg) {
 		return true
 	}
-	globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] Invalid UDP message, please check ! msg length: ", len(msg))
+	globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] Invalid UDP message, please check ! msg length:", len(msg))
 	return false
 }
 
@@ -34,7 +33,7 @@ func UDPMsgProc(msg []byte, rinfo dgram.RInfo) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("UDPMsgProc err : ", err)
+			globallogger.Log.Errorln("UDPMsgProc err :", err)
 		}
 	}()
 	if crc.Check(msg) {
@@ -42,7 +41,7 @@ func UDPMsgProc(msg []byte, rinfo dgram.RInfo) {
 			globallogger.Log.Infoln("Receive UDP msg:", hex.EncodeToString(msg), "from", rinfo.Address, ":", rinfo.Port)
 			procUDPMsg(msg, rinfo)
 		} else {
-			globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] Receive illegal UDP msg: ", hex.EncodeToString(msg),
+			globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] Receive illegal UDP msg:", hex.EncodeToString(msg),
 				"from", rinfo.Address, ":", rinfo.Port)
 		}
 	}
@@ -54,13 +53,16 @@ func CreateUDPServer(rcvUDPMsgport int) {
 
 	go func() {
 		defer globalsocket.ServiceSocket.Close()
+		var data = make([]byte, 1024)
 		for {
-			msg, rinfo, err := globalsocket.ServiceSocket.Receive()
+			msg, rinfo, err := globalsocket.ServiceSocket.Receive(data)
 			if err != nil {
 				globallogger.Log.Errorln(err.Error())
 				continue
 			}
 			go UDPMsgProc(msg, rinfo)
+			metrics.CountUdpReceiveTotal()
+			metrics.CountUdpReceiveByAddress(rinfo.Address)
 		}
 	}()
 }
@@ -93,7 +95,7 @@ func checkMsgTypeIsLegal(msgType string) bool {
 		isLegal = true
 		// globallogger.Log.Infoln("==========================msgType is legal, go on========================")
 	default:
-		globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] msgType is illegal, please check ! msgType: " + msgType)
+		globallogger.Log.Warnln("[ WARNING ! WARNING ! WARNING ! ] msgType is illegal, please check ! msgType:", msgType)
 	}
 	return isLegal
 }
@@ -106,29 +108,36 @@ func procUDPMsg(udpMsg []byte, rinfo dgram.RInfo) {
 	if jsonInfo.TunnelHeader.DevTypeInfo.DevType == "T320M" {
 		jsonInfo.TunnelHeader.LinkInfo.APMac = jsonInfo.TunnelHeader.LinkInfo.ACMac
 	}
-	var APMac = jsonInfo.TunnelHeader.LinkInfo.APMac
+	metrics.CountUdpReceiveByGwSN(jsonInfo.TunnelHeader.LinkInfo.APMac)
+	metrics.CountUdpReceiveByGwSNAndModuleID(jsonInfo.TunnelHeader.LinkInfo.APMac, jsonInfo.MessagePayload.ModuleID)
 	switch jsonInfo.MessageHeader.MsgType { // UDP新协议版本msgType判断，新协议版本号0101
 	case globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101,
 		globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101,
 		globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralFailedV0101:
 		if jsonInfo.TunnelHeader.Version != constant.Constant.UDPVERSION.Version0101 &&
 			jsonInfo.TunnelHeader.Version != constant.Constant.UDPVERSION.Version0102 {
-			globallogger.Log.Warnln("[procUDPMsg] version is illegal, please check ! version: " + jsonInfo.TunnelHeader.Version)
+			globallogger.Log.Warnln("[procUDPMsg] version is illegal, please check ! version:", jsonInfo.TunnelHeader.Version)
 			return
 		}
 	}
-	var msgType = jsonInfo.MessageHeader.MsgType
-	if checkMsgTypeIsLegal(msgType) { //msgtyp合法性校验
-		if msgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
-			msgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 { //处理ack消息
+	if checkMsgTypeIsLegal(jsonInfo.MessageHeader.MsgType) { //msgtyp合法性校验
+		if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
+			jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 { //处理ack消息
 			procACKMsg(jsonInfo)
-		} else if msgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralKeepalive ||
-			msgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101 {
-			publicfunction.UpdateSocketInfo(jsonInfo)
-			publicfunction.KeepAliveTimerUpdateOrCreate(APMac)
-			go publicfunction.SendACK(jsonInfo)
-			time, _ := strconv.ParseInt(hex.EncodeToString(udpMsg[len(udpMsg)-4:len(udpMsg)-2]), 16, 0)
-			procKeepAliveMsg(APMac, int(time))
+			metrics.CountUdpReceiveByLabel("ack")
+		} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralKeepalive ||
+			jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101 {
+			keepAliveInterval, _ := strconv.ParseInt(hex.EncodeToString(append(udpMsg[:0:0], udpMsg[len(udpMsg)-4:len(udpMsg)-2]...)), 16, 0)
+			publicfunction.UpdateSocketInfo(jsonInfo, keepAliveInterval)
+			publicfunction.SendACK(jsonInfo)
+			if constant.Constant.MultipleInstances {
+				publicfunction.KeepAliveTimerRedisSet(jsonInfo.TunnelHeader.LinkInfo.APMac)
+				procKeepAliveMsgRedis(jsonInfo.TunnelHeader.LinkInfo.APMac, int(keepAliveInterval))
+			} else {
+				publicfunction.KeepAliveTimerFreeCacheSet(jsonInfo.TunnelHeader.LinkInfo.APMac, int(keepAliveInterval))
+				procKeepAliveMsgFreeCache(jsonInfo.TunnelHeader.LinkInfo.APMac, int(keepAliveInterval))
+			}
+			metrics.CountUdpReceiveByLabel("keepalive")
 		} else {
 			procAnyMsg(jsonInfo)
 		}

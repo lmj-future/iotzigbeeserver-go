@@ -24,10 +24,10 @@ func TestClient(t *testing.T) {
 	conn, err := redis.Dial(
 		"tcp", connectionString, opts...,
 	)
-	defer conn.Close()
 	if err != nil {
 		fmt.Println(err)
 	}
+	defer conn.Close()
 	conn.Do("set", "aa", "11")
 	reply, err := redis.String(conn.Do("get", "aa"))
 	if err != nil {
@@ -90,17 +90,17 @@ func TestClusterClient(t *testing.T) {
 	)
 	var instance = redigo.New(clusterMode)
 
-	res, err := instance.String(func(c redis.Conn) (res interface{}, err error) {
+	res, _ := instance.String(func(c redis.Conn) (res interface{}, err error) {
 		return c.Do("ECHO", echoStr)
 	})
 	fmt.Println(res)
 
-	res, err = instance.String(func(c redis.Conn) (res interface{}, err error) {
+	res, _ = instance.String(func(c redis.Conn) (res interface{}, err error) {
 		return c.Do("set", "test0324", "0324")
 	})
 	fmt.Println(res)
 
-	res, err = instance.String(func(c redis.Conn) (res interface{}, err error) {
+	res, err := instance.String(func(c redis.Conn) (res interface{}, err error) {
 		return c.Do("get", "test0324")
 	})
 	fmt.Println(res)

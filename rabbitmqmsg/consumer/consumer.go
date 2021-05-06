@@ -249,84 +249,73 @@ func heimanIRControlEMSendKeyCommand(devEUI string, ID string, KeyCode string, m
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMSendKeyCommand] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.SendKeyCommand,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 func heimanIRControlEMStudyKey(devEUI string, ID string, KeyCode string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMStudyKey] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.StudyKey,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 func heimanIRControlEMDeleteKey(devEUI string, ID string, KeyCode string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMDeleteKey] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.DeleteKey,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 func heimanIRControlEMCreateID(devEUI string, ModelType string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMCreateID] ModelType: %s", devEUI, ModelType)
 	modelType, _ := strconv.Atoi(ModelType)
-	cmd := common.Command{
-		InfraredRemoteModelType: uint8(modelType),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.CreateID,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteModelType: uint8(modelType),
+		},
+		MsgID: msgID,
+	})
 }
 func heimanIRControlEMGetIDAndKeyCodeList(devEUI string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMGetIDAndKeyCodeList]", devEUI)
-	cmd := common.Command{}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.GetIDAndKeyCodeList,
 		ClusterID:   0xfc82,
-		Command:     cmd,
 		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+	})
 }
 
 // ConsumerByIotwebserver 处理来自iotwebserver的消息
@@ -334,7 +323,7 @@ func (r *RabbitMQConnect) ConsumerByIotwebserver(msg amqp.Delivery) (rabbitmq.Re
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("ConsumerByIotwebserver err : ", err)
+			globallogger.Log.Errorln("ConsumerByIotwebserver err :", err)
 		}
 	}()
 	globallogger.Log.Warnf("[RabbitMQ]Receive msg: %+v\n", string(msg.Body))

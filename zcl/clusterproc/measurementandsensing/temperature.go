@@ -42,7 +42,7 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 		if attribute.Value.(int64) > 38220 {
 			temperature = temperature - 655.36
 		}
-		if terminalInfo.UnitOfTemperature == "F" {
+		if !constant.Constant.Iotware && terminalInfo.UnitOfTemperature == "F" {
 			temperature = 32 + temperature*1.8
 		}
 		temperature, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", temperature), 64)
@@ -81,7 +81,7 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 	case "MaxMeasuredValue":
 	case "Tolerance":
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"temperatureMeasurementProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "temperatureMeasurementProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -116,21 +116,20 @@ func temperatureMeasurementProcConfigureReportingResponse(terminalInfo config.Te
 			globallogger.Log.Infof("[devEUI: %v][temperatureMeasurementProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
 		}
 	}
+	if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM {
+		iotsmartspace.ProcHEIMANHTEM(terminalInfo, 3)
+	}
 }
 
 // TemperatureMeasurementProc 处理clusterID 0x0402属性消息
 func TemperatureMeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][TemperatureMeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][TemperatureMeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		temperatureMeasurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
-		temperatureMeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReporting)].Name:
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
+	case "ConfigureReportingResponse":
 		temperatureMeasurementProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
+	case "ReportAttributes":
+		temperatureMeasurementProcReport(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][TemperatureMeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

@@ -64,16 +64,6 @@ func (MemoryCache) InsertMemory(key string, data []byte) (int, error) {
 	lenTemp := len(valueCache)
 	memoryListCache.Unlock()
 	return lenTemp, nil
-
-	// valueCache := make(map[int][]byte)
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueCache = v.(map[int][]byte)
-	// 	valueCache[len(valueCache)+1] = data
-	// } else {
-	// 	valueCache[1] = data
-	// }
-	// memoryListSyncCache.Store(key, valueCache)
-	// return len(valueCache), nil
 }
 
 //UpdateMemory UpdateMemory
@@ -85,12 +75,6 @@ func (MemoryCache) UpdateMemory(key string, data []byte) (string, error) {
 	memoryListCache.memoryCache[key] = valueCache
 	memoryListCache.Unlock()
 	return string(data), nil
-
-	// valueCache := make(map[int][]byte)
-	// valueCache[1] = data
-	// memoryListSyncCache.Delete(key)
-	// memoryListSyncCache.Store(key, valueCache)
-	// return string(data), nil
 }
 
 //DeleteMemory DeleteMemory
@@ -100,10 +84,6 @@ func (MemoryCache) DeleteMemory(key string) (int, error) {
 	delete(memorySingleCache.memoryCache, key)
 	memoryListCache.Unlock()
 	return 1, nil
-
-	// memoryListSyncCache.Delete(key)
-	// memorySingleSyncCache.Delete(key)
-	// return 1, nil
 }
 
 //DeleteMemoryOne DeleteMemoryOne
@@ -113,13 +93,6 @@ func (MemoryCache) DeleteMemoryOne(key string, value string) (int, error) {
 	delete(memoryListCache.memoryCache, key)
 	memoryListCache.Unlock()
 	return valueLen, nil
-
-	// var valueLen int
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueLen = len(v.(map[int][]byte))
-	// }
-	// memoryListSyncCache.Delete(key)
-	// return valueLen, nil
 }
 
 //GetMemory GetMemory
@@ -128,12 +101,6 @@ func (MemoryCache) GetMemory(key string) (string, error) {
 	value := memoryListCache.memoryCache[key][1]
 	memoryListCache.RUnlock()
 	return string(value), nil
-
-	// var value []byte
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	value = v.(map[int][]byte)[1]
-	// }
-	// return string(value), nil
 }
 
 //GetMemoryByIndex GetMemoryByIndex
@@ -142,12 +109,6 @@ func (MemoryCache) GetMemoryByIndex(key string, index int) (string, error) {
 	value := memoryListCache.memoryCache[key][index+1]
 	memoryListCache.RUnlock()
 	return string(value), nil
-
-	// var value []byte
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	value = v.(map[int][]byte)[index+1]
-	// }
-	// return string(value), nil
 }
 
 //GetMemoryEnd GetMemoryEnd
@@ -156,12 +117,6 @@ func (MemoryCache) GetMemoryEnd(key string) (string, error) {
 	value := memoryListCache.memoryCache[key][len(memoryListCache.memoryCache[key])]
 	memoryListCache.RUnlock()
 	return string(value), nil
-
-	// var value []byte
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	value = v.(map[int][]byte)[len(v.(map[int][]byte))]
-	// }
-	// return string(value), nil
 }
 
 //GetMemoryLength GetMemoryLength
@@ -170,12 +125,6 @@ func (MemoryCache) GetMemoryLength(key string) (int, error) {
 	lenTemp := len(memoryListCache.memoryCache[key])
 	memoryListCache.RUnlock()
 	return lenTemp, nil
-
-	// var valueLen int
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueLen = len(v.(map[int][]byte))
-	// }
-	// return valueLen, nil
 }
 
 //PopMemory PopMemory
@@ -191,18 +140,6 @@ func (MemoryCache) PopMemory(key string) (string, error) {
 	delete(memoryListCache.memoryCache[key], 0)
 	memoryListCache.Unlock()
 	return string(value), nil
-
-	// var value []byte
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueCache := make(map[int][]byte)
-	// 	for i := 0; i < len(v.(map[int][]byte)); i++ {
-	// 		valueCache[i] = v.(map[int][]byte)[i+1]
-	// 	}
-	// 	value = valueCache[0]
-	// 	delete(valueCache, 0)
-	// 	memoryListSyncCache.Store(key, valueCache)
-	// }
-	// return string(value), nil
 }
 
 //RangeMemory RangeMemory
@@ -214,14 +151,6 @@ func (MemoryCache) RangeMemory(key string, start int, stop int) ([]string, error
 	}
 	memoryListCache.Unlock()
 	return valueList, nil
-
-	// var valueList []string = make([]string, stop-start)
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	for i := 0; i < stop; i++ {
-	// 		valueList[i] = string(v.(map[int][]byte)[i+1])
-	// 	}
-	// }
-	// return valueList, nil
 }
 
 //SetMemory SetMemory
@@ -239,17 +168,6 @@ func (MemoryCache) SetMemory(key string, index int, value []byte) (string, error
 	}
 	memoryListCache.Unlock()
 	return "OK", nil
-
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueCache := make(map[int][]byte)
-	// 	valueCache = v.(map[int][]byte)
-	// 	if index > len(valueCache) {
-	// 		return "", errors.Errorf("index out of bounds exception")
-	// 	}
-	// 	valueCache[index+1] = value
-	// 	memoryListSyncCache.Store(key, valueCache)
-	// }
-	// return "OK", nil
 }
 
 //RemoveMemory RemoveMemory
@@ -271,27 +189,6 @@ func (MemoryCache) RemoveMemory(key string, count int, value string) (int, error
 	}
 	memoryListCache.Unlock()
 	return count, nil
-
-	// var countTemp int = 0
-	// if v, ok := memoryListSyncCache.Load(key); ok {
-	// 	valueCache := make(map[int][]byte)
-	// 	valueCache = v.(map[int][]byte)
-	// 	for i := 0; i < len(valueCache); i++ {
-	// 		if string(valueCache[i]) == value && countTemp < count {
-	// 			countTemp++
-	// 			delete(valueCache, i)
-	// 		}
-	// 	}
-	// 	for k := 0; k < count; k++ {
-	// 		for j := 1; j < len(valueCache); j++ {
-	// 			if len(valueCache[j]) == 0 {
-	// 				valueCache[j] = valueCache[j+1]
-	// 			}
-	// 		}
-	// 	}
-	// 	memoryListSyncCache.Store(key, valueCache)
-	// }
-	// return count, nil
 }
 
 //SaddMemory SaddMemory
@@ -301,14 +198,6 @@ func (MemoryCache) SaddMemory(key string, member string) (int, error) {
 	lenTemp := len(memoryListAllCache.memoryCache[key])
 	memoryListAllCache.Unlock()
 	return lenTemp, nil
-
-	// var valueCache []string
-	// if v, ok := memoryListAllSyncCache.Load(key); ok {
-	// 	valueCache = v.([]string)
-	// }
-	// valueCache = append(valueCache, member)
-	// memoryListAllSyncCache.Store(key, valueCache)
-	// return len(valueCache), nil
 }
 
 //SremMemory SremMemory
@@ -322,18 +211,6 @@ func (MemoryCache) SremMemory(key string, member string) (int, error) {
 	lenTemp := len(memoryListAllCache.memoryCache[key])
 	memoryListAllCache.Unlock()
 	return lenTemp, nil
-
-	// var valueCache []string
-	// if v, ok := memoryListAllSyncCache.Load(key); ok {
-	// 	valueCache = v.([]string)
-	// 	for i := 0; i < len(valueCache); i++ {
-	// 		if valueCache[i] == member {
-	// 			valueCache[i] = ""
-	// 		}
-	// 	}
-	// 	memoryListAllSyncCache.Store(key, valueCache)
-	// }
-	// return len(valueCache), nil
 }
 
 //FindAllMemoryKeys FindAllMemoryKeys
@@ -342,12 +219,6 @@ func (MemoryCache) FindAllMemoryKeys(key string) ([]string, error) {
 	value := memoryListAllCache.memoryCache[key]
 	memoryListAllCache.RUnlock()
 	return value, nil
-
-	// var valueCache []string
-	// if v, ok := memoryListAllSyncCache.Load(key); ok {
-	// 	valueCache = v.([]string)
-	// }
-	// return valueCache, nil
 }
 
 //SetMemorySet SetMemorySet
@@ -356,9 +227,6 @@ func (MemoryCache) SetMemorySet(key string, value string) (string, error) {
 	memorySingleCache.memoryCache[key] = value
 	memorySingleCache.Unlock()
 	return "OK", nil
-
-	// memorySingleSyncCache.Store(key, value)
-	// return "OK", nil
 }
 
 //GetMemoryGet GetMemoryGet
@@ -367,12 +235,6 @@ func (MemoryCache) GetMemoryGet(key string) (string, error) {
 	value := memorySingleCache.memoryCache[key]
 	memorySingleCache.RUnlock()
 	return value, nil
-
-	// var value string
-	// if v, ok := memorySingleSyncCache.Load(key); ok {
-	// 	value = v.(string)
-	// }
-	// return value, nil
 }
 
 //GetMemorySize  GetMemorySize
@@ -381,14 +243,14 @@ func (MemoryCache) GetMemorySize() (int, error) {
 	var sizeTotal int
 	for memoryCacheKey, memoryCacheValue := range memoryListCache.memoryCache {
 		var size int
-		for _, byteValue := range memoryCacheValue {
+		for index, byteValue := range memoryCacheValue {
 			size += len(byteValue)
+			globallogger.Log.Warnf("[GetMemorySize][memoryListCache]: key: %s, size: %d byte, memoryCache[%d]: %s",
+				memoryCacheKey, size, index, string(byteValue))
 		}
-		globallogger.Log.Errorln("[GetMemorySize]: key: ", memoryCacheKey, " size: ", size, " byte")
-		globallogger.Log.Errorf("[GetMemorySize]: key: %s memoryCache: %+v", memoryCacheKey, memoryCacheValue)
 		sizeTotal += size
 	}
-	globallogger.Log.Errorln("[GetMemorySize]: memoryListCache total size: ", sizeTotal, " byte")
+	globallogger.Log.Warnln("[GetMemorySize][memoryListCache]: total size:", sizeTotal, "byte")
 	memoryListCache.RUnlock()
 
 	memoryListAllCache.RLock()
@@ -398,21 +260,20 @@ func (MemoryCache) GetMemorySize() (int, error) {
 		for _, stringValue := range memoryCacheValue {
 			size += len(stringValue)
 		}
-		globallogger.Log.Errorln("[GetMemorySize]: key: ", memoryCacheKey, " size: ", size, " byte")
-		globallogger.Log.Errorf("[GetMemorySize]: key: %s memoryCache: %+v", memoryCacheKey, memoryCacheValue)
+		globallogger.Log.Warnf("[GetMemorySize][memoryListAllCache]: key: %s, size: %d byte, memoryCache: %+v", memoryCacheKey, size, memoryCacheValue)
 		sizeTotal2 += size
 	}
-	globallogger.Log.Errorln("[GetMemorySize]: memoryListAllCache total size: ", sizeTotal2, " byte")
+	globallogger.Log.Warnln("[GetMemorySize][memoryListAllCache]: total size:", sizeTotal2, "byte")
 	memoryListAllCache.RUnlock()
 
 	memorySingleCache.RLock()
 	var sizeTotal3 int
 	for memoryCacheKey, memoryCacheValue := range memorySingleCache.memoryCache {
-		globallogger.Log.Errorln("[GetMemorySize]: key: ", memoryCacheKey, " size: ", len(memoryCacheValue), " byte")
-		globallogger.Log.Errorf("[GetMemorySize]: key: %s memoryCache: %+v", memoryCacheKey, memoryCacheValue)
+		globallogger.Log.Warnf("[GetMemorySize][memorySingleCache]: key: %s, size: %d byte, memoryCache: %+v",
+			memoryCacheKey, len(memoryCacheValue), memoryCacheValue)
 		sizeTotal3 += len(memoryCacheValue)
 	}
-	globallogger.Log.Errorln("[GetMemorySize]: memorySingleCache total size: ", sizeTotal3, " byte")
+	globallogger.Log.Warnln("[GetMemorySize][memorySingleCache]: total size:", sizeTotal3, "byte")
 	memorySingleCache.RUnlock()
 	return sizeTotal + sizeTotal2 + sizeTotal3, nil
 }

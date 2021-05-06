@@ -11,24 +11,22 @@ var Log logger.Logger
 
 // Init Init
 func Init(loggercfg map[string]interface{}) {
-	cfg := logger.Config{
+	var err error
+	if Log, err = logger.New(logger.Config{
 		Path:  loggercfg["path"].(string),
 		Level: loggercfg["level"].(string),
 		// Store: loggercfg["store"].(string),
-	}
-	var err error
-	if Log, err = logger.New(cfg, "service", "h3c-zigbee"); err != nil {
+	}, "service", "h3c-zigbee"); err != nil {
 		log.Panic(err)
 	}
 }
 
 // SetLogLevel SetLogLevel
 func SetLogLevel(level string) {
-	cfg := logger.Config{
-		Level: level,
-	}
 	var err error
-	if Log, err = logger.New(cfg, "service", "h3c-zigbee"); err != nil {
+	if Log, err = logger.New(logger.Config{
+		Level: level,
+	}, "service", "h3c-zigbee"); err != nil {
 		log.Panic(err)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -28,15 +27,14 @@ var Client sarama.Client
 func reConnect(addrs []string, config *sarama.Config) {
 	var err error
 	timer := time.NewTimer(30 * time.Second)
-	select {
-	case <-timer.C:
-		Client, err = sarama.NewClient(addrs, config)
-		if err != nil {
-			globallogger.Log.Errorln("[Kafka][Reconnect] NewClient, err:", err.Error())
-			reConnect(addrs, config)
-		} else {
-			globallogger.Log.Warnf("[Kafka][Reconnect] new client success: %+v", Client)
-		}
+	<-timer.C
+	timer.Stop()
+	Client, err = sarama.NewClient(addrs, config)
+	if err != nil {
+		globallogger.Log.Errorln("[Kafka][Reconnect] NewClient, err:", err.Error())
+		reConnect(addrs, config)
+	} else {
+		globallogger.Log.Warnf("[Kafka][Reconnect] new client success: %+v", Client)
 	}
 }
 
@@ -82,6 +80,7 @@ func Producer(topic string, value string) {
 	case fail := <-producer.Errors():
 		globallogger.Log.Errorf("[Kafka] [Producer] failed, err: %s", fail.Err.Error())
 	default:
+		globallogger.Log.Warnf("[Kafka] [Producer] default, topic: %s, value: %s", topic, value)
 	}
 }
 
@@ -101,11 +100,12 @@ func Consumer() sarama.ConsumerGroup {
 }
 
 func consume(group *sarama.ConsumerGroup, name string) {
-	globallogger.Log.Infoln("[Kafka] [Consume] " + name + "start")
+	globallogger.Log.Infoln("[Kafka] [Consume]", name, "start")
 	ctx := context.Background()
 	for {
 		topics := []string{
 			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom,
+			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent,
 			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInProperty,
 			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicDelTerminal,
 			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicUpdateTerminal,
@@ -113,26 +113,27 @@ func consume(group *sarama.ConsumerGroup, name string) {
 		handler := consumerGroupHandler{name: name}
 		err := (*group).Consume(ctx, topics, handler)
 		if err != nil {
-			globallogger.Log.Errorln("[Kafka] [Consume] " + err.Error())
+			globallogger.Log.Errorln("[Kafka] [Consume]", err.Error())
 		}
 	}
 }
 func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
 func (consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
 func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	defer func() {
+		err := recover()
+		if err != nil {
+			globallogger.Log.Errorln("[Kafka] [Consume] err :", err)
+		}
+	}()
 	for msg := range claim.Messages() {
-		defer func() {
-			err := recover()
-			if err != nil {
-				globallogger.Log.Errorln("[Kafka] [Consume] err : ", err)
-			}
-		}()
 		globallogger.Log.Warnf("[Kafka] [Consume] %s Message topic:%q partition:%d offset:%d  value:%s",
 			h.name, msg.Topic, msg.Partition, msg.Offset, string(msg.Value))
 		// 手动确认消息
 		sess.MarkMessage(msg, "")
 		switch msg.Topic {
-		case constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom:
+		case constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom,
+			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent:
 			procBuildInPropertyByCustom(msg.Value)
 		case constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInProperty:
 			procBuildInProperty(msg.Value)
@@ -145,12 +146,12 @@ func (h consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cla
 	return nil
 }
 
-func handleErrors(group *sarama.ConsumerGroup, wg *sync.WaitGroup) {
-	wg.Done()
-	for err := range (*group).Errors() {
-		globallogger.Log.Errorln("[Kafka] [Consume] ERROR", err)
-	}
-}
+// func handleErrors(group *sarama.ConsumerGroup, wg *sync.WaitGroup) {
+// 	wg.Done()
+// 	for err := range (*group).Errors() {
+// 		globallogger.Log.Errorln("[Kafka] [Consume] ERROR", err)
+// 	}
+// }
 
 func procIntervalCommand(terminalInfo *config.TerminalInfo, interval int) {
 	if constant.Constant.UsePostgres {
@@ -158,7 +159,20 @@ func procIntervalCommand(terminalInfo *config.TerminalInfo, interval int) {
 	} else {
 		models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, bson.M{"interval": interval})
 	}
-	endpointTemp := pq.StringArray{}
+	if terminalInfo != nil {
+		var keyBuilder strings.Builder
+		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			keyBuilder.WriteString(terminalInfo.APMac)
+			keyBuilder.WriteString(terminalInfo.ModuleID)
+			keyBuilder.WriteString(terminalInfo.NwkAddr)
+		} else {
+			keyBuilder.WriteString(terminalInfo.APMac)
+			keyBuilder.WriteString(terminalInfo.ModuleID)
+			keyBuilder.WriteString(terminalInfo.DevEUI)
+		}
+		publicfunction.DeleteTerminalInfoListCache(keyBuilder.String())
+	}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -195,28 +209,20 @@ func procIntervalCommand(terminalInfo *config.TerminalInfo, interval int) {
 	default:
 		globallogger.Log.Warnf("[procIntervalCommand]: invalid tmnType: %s", terminalInfo.TmnType)
 	}
-	cmd := common.Command{
-		Interval: uint16(interval),
-	}
-	cmd.DstEndpointIndex = endpointIndex
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.IntervalCommand,
 		ClusterID:   clusterID,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			Interval:         uint16(interval),
+			DstEndpointIndex: endpointIndex,
+		},
+	})
 }
 
 func procAddScene(terminalInfo *config.TerminalInfo, sceneID uint8, sceneName string) {
-	command := common.Command{}
-	command.GroupID = 1
-	command.TransitionTime = 0
-	command.SceneName = "0" + strconv.FormatInt(int64(len(sceneName)/2), 16) + sceneName
-	command.KeyID = 1
-	command.SceneID = sceneID
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -226,65 +232,63 @@ func procAddScene(terminalInfo *config.TerminalInfo, sceneID uint8, sceneName st
 	if len(endpointTemp) > 1 && endpointTemp[1] == "01" {
 		endpointIndex = 1
 	}
-	command.DstEndpointIndex = endpointIndex
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.AddScene,
 		ClusterID:   uint16(cluster.Scenes),
-		Command:     command,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			GroupID:          1,
+			TransitionTime:   0,
+			SceneName:        "0" + strconv.FormatInt(int64(len(sceneName)/2), 16) + sceneName,
+			KeyID:            1,
+			SceneID:          sceneID,
+			DstEndpointIndex: endpointIndex,
+		},
+	})
 }
 
 func procOnOff(terminalInfo *config.TerminalInfo, value string) {
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
 		endpointTemp = terminalInfo.Endpoint
 	}
-	endpoint := string([]byte(value)[:1])
-	endpoint = "0" + endpoint
 	var dstEndpointIndex int
 	for i, v := range endpointTemp {
-		if v == endpoint {
+		if v == "0"+string([]byte(value)[:1]) {
 			dstEndpointIndex = i
 		}
 	}
-	onOffCommand := string([]byte(value)[1:2])
 	var commandID uint8
-	if onOffCommand == "0" {
+	if string([]byte(value)[1:2]) == "0" {
 		commandID = 0x00
 	} else {
 		commandID = 0x01
 	}
-	cmd := common.Command{
-		Cmd:              commandID,
-		DstEndpointIndex: dstEndpointIndex,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.SwitchCommand,
 		ClusterID:   uint16(cluster.OnOff),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			Cmd:              commandID,
+			DstEndpointIndex: dstEndpointIndex,
+		},
+	})
 }
 
 func procSocketCommand(terminalInfo *config.TerminalInfo, value string, commandType string) {
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
 		endpointTemp = terminalInfo.Endpoint
 	}
-	endpoint := string([]byte(value)[:1])
-	endpoint = "0" + endpoint
 	var dstEndpointIndex int
 	for i, v := range endpointTemp {
-		if v == endpoint {
+		if v == "0"+string([]byte(value)[:1]) {
 			dstEndpointIndex = i
 		}
 	}
@@ -325,25 +329,23 @@ func procSocketCommand(terminalInfo *config.TerminalInfo, value string, commandT
 	if commandType == common.OnOffUSB {
 		commandType = common.SocketCommand
 	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: commandType,
 		ClusterID:   clusterID,
 		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+	})
 }
 
 func procIRControlEMCommand(devEUI string, cmd common.Command, commandType string) {
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: commandType,
 		ClusterID:   uint16(cluster.HEIMANInfraredRemote),
 		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+	})
 }
 
 func procHS2AQEMTemperatureAlarmThresholdSet(terminalInfo *config.TerminalInfo, minValue int, maxValue int) {
@@ -359,7 +361,7 @@ func procHS2AQEMTemperatureAlarmThresholdSet(terminalInfo *config.TerminalInfo, 
 	if terminalInfo.Disturb == "80c0" {
 		disturb = 0x80c0
 	}
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -369,20 +371,18 @@ func procHS2AQEMTemperatureAlarmThresholdSet(terminalInfo *config.TerminalInfo, 
 	if len(endpointTemp) > 1 && endpointTemp[1] == "01" {
 		endpointIndex = 1
 	}
-	cmd := common.Command{
-		DstEndpointIndex: endpointIndex,
-		MaxTemperature:   int16(maxValue),
-		MinTemperature:   int16(minValue),
-		Disturb:          disturb,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.SetThreshold,
 		ClusterID:   uint16(cluster.HEIMANAirQualityMeasurement),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: endpointIndex,
+			MaxTemperature:   int16(maxValue),
+			MinTemperature:   int16(minValue),
+			Disturb:          disturb,
+		},
+	})
 }
 
 func procHS2AQEMHumidityAlarmThresholdSet(terminalInfo *config.TerminalInfo, minValue int, maxValue int) {
@@ -398,7 +398,7 @@ func procHS2AQEMHumidityAlarmThresholdSet(terminalInfo *config.TerminalInfo, min
 	if terminalInfo.Disturb == "80c0" {
 		disturb = 0x80c0
 	}
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -408,24 +408,22 @@ func procHS2AQEMHumidityAlarmThresholdSet(terminalInfo *config.TerminalInfo, min
 	if len(endpointTemp) > 1 && endpointTemp[1] == "01" {
 		endpointIndex = 1
 	}
-	cmd := common.Command{
-		DstEndpointIndex: endpointIndex,
-		MaxHumidity:      uint16(maxValue),
-		MinHumidity:      uint16(minValue),
-		Disturb:          disturb,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.SetThreshold,
 		ClusterID:   uint16(cluster.HEIMANAirQualityMeasurement),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: endpointIndex,
+			MaxHumidity:      uint16(maxValue),
+			MinHumidity:      uint16(minValue),
+			Disturb:          disturb,
+		},
+	})
 }
 
 func procHS2AQEMDisturbMode(terminalInfo *config.TerminalInfo, value string) {
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -455,36 +453,32 @@ func procHS2AQEMDisturbMode(terminalInfo *config.TerminalInfo, value string) {
 	if terminalInfo.MinHumidity != "" {
 		minHumidity, _ = strconv.ParseUint(terminalInfo.MinHumidity, 10, 16)
 	}
-	cmd := common.Command{
-		DstEndpointIndex: endpointIndex,
-		MaxTemperature:   int16(maxTemperature),
-		MinTemperature:   int16(minTemperature),
-		MaxHumidity:      uint16(maxHumidity),
-		MinHumidity:      uint16(minHumidity),
-		Disturb:          disturb,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.SetThreshold,
 		ClusterID:   uint16(cluster.HEIMANAirQualityMeasurement),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: endpointIndex,
+			MaxTemperature:   int16(maxTemperature),
+			MinTemperature:   int16(minTemperature),
+			MaxHumidity:      uint16(maxHumidity),
+			MinHumidity:      uint16(minHumidity),
+			Disturb:          disturb,
+		},
+	})
 }
 
 func procHS2AQSetLanguage(devEUI string, language uint8) {
-	cmd := common.Command{
-		Cmd: language,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.SetLanguage,
 		ClusterID:   uint16(cluster.HEIMANAirQualityMeasurement),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			Cmd: language,
+		},
+	})
 }
 
 func procHS2AQSetUnitOfTemperature(devEUI string, unitOfTemperature uint8) {
@@ -492,22 +486,34 @@ func procHS2AQSetUnitOfTemperature(devEUI string, unitOfTemperature uint8) {
 	if unitOfTemperature == 0 {
 		unitoftemperature = "F"
 	}
+	var terminalInfo *config.TerminalInfo = nil
 	if constant.Constant.UsePostgres {
-		models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, map[string]interface{}{"unitoftemperature": unitoftemperature})
+		terminalInfo, _ = models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, map[string]interface{}{"unitoftemperature": unitoftemperature})
 	} else {
-		models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, bson.M{"unitOfTemperature": unitoftemperature})
+		terminalInfo, _ = models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, bson.M{"unitOfTemperature": unitoftemperature})
 	}
-	cmd := common.Command{
-		Cmd: unitOfTemperature,
+	if terminalInfo != nil {
+		var keyBuilder strings.Builder
+		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			keyBuilder.WriteString(terminalInfo.APMac)
+			keyBuilder.WriteString(terminalInfo.ModuleID)
+			keyBuilder.WriteString(terminalInfo.NwkAddr)
+		} else {
+			keyBuilder.WriteString(terminalInfo.APMac)
+			keyBuilder.WriteString(terminalInfo.ModuleID)
+			keyBuilder.WriteString(terminalInfo.DevEUI)
+		}
+		publicfunction.DeleteTerminalInfoListCache(keyBuilder.String())
 	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.SetUnitOfTemperature,
 		ClusterID:   uint16(cluster.HEIMANAirQualityMeasurement),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			Cmd: unitOfTemperature,
+		},
+	})
 }
 
 func procWarningDeviceAlarm(devEUI string, alarmTime string) {
@@ -516,27 +522,21 @@ func procWarningDeviceAlarm(devEUI string, alarmTime string) {
 	if alarmTime == "0" {
 		warningControl = 0x0014
 	}
-	endpointIndex := 0
-	cmd := common.Command{
-		DstEndpointIndex: endpointIndex,
-		WarningControl:   warningControl,
-		WarningTime:      uint16(time),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.StartWarning,
 		ClusterID:   uint16(cluster.IASWarningDevice),
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: 0,
+			WarningControl:   warningControl,
+			WarningTime:      uint16(time),
+		},
+	})
 }
 
 func procInterval(terminalInfo *config.TerminalInfo, clusterID uint16, interval uint16) {
-	cmd := common.Command{
-		Interval: interval,
-	}
-	endpointTemp := pq.StringArray{}
+	var endpointTemp pq.StringArray
 	if constant.Constant.UsePostgres {
 		endpointTemp = terminalInfo.EndpointPG
 	} else {
@@ -563,15 +563,16 @@ func procInterval(terminalInfo *config.TerminalInfo, clusterID uint16, interval 
 			}
 		}
 	}
-	cmd.DstEndpointIndex = endpointIndex
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.IntervalCommand,
 		ClusterID:   clusterID,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			Interval:         interval,
+			DstEndpointIndex: endpointIndex,
+		},
+	})
 }
 
 func procBuildInPropertyByCustom(value []byte) {
@@ -592,7 +593,7 @@ func procBuildInPropertyByCustom(value []byte) {
 		} else {
 			terminalInfo, err = models.GetTerminalInfoByDevEUI(d.Addr)
 		}
-		if terminalInfo != nil {
+		if err == nil && terminalInfo != nil {
 			switch d.CapacityIdentifier {
 			case "keepAlive":
 				interval, _ := strconv.Atoi(d.Command)
@@ -628,7 +629,7 @@ func procBuildInPropertyByCustom(value []byte) {
 					commandArr = strings.Split(d.Command, "，")
 				}
 				infraredRemoteID, _ := strconv.Atoi(commandArr[0])
-				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[0])
+				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[1])
 				cmd := common.Command{
 					InfraredRemoteID:      uint8(infraredRemoteID),
 					InfraredRemoteKeyCode: uint8(infraredRemoteKeyCode),
@@ -640,7 +641,7 @@ func procBuildInPropertyByCustom(value []byte) {
 					commandArr = strings.Split(d.Command, "，")
 				}
 				infraredRemoteID, _ := strconv.Atoi(commandArr[0])
-				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[0])
+				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[1])
 				cmd := common.Command{
 					InfraredRemoteID:      uint8(infraredRemoteID),
 					InfraredRemoteKeyCode: uint8(infraredRemoteKeyCode),
@@ -652,7 +653,7 @@ func procBuildInPropertyByCustom(value []byte) {
 					commandArr = strings.Split(d.Command, "，")
 				}
 				infraredRemoteID, _ := strconv.Atoi(commandArr[0])
-				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[0])
+				infraredRemoteKeyCode, _ := strconv.Atoi(commandArr[1])
 				cmd := common.Command{
 					InfraredRemoteID:      uint8(infraredRemoteID),
 					InfraredRemoteKeyCode: uint8(infraredRemoteKeyCode),
@@ -734,7 +735,18 @@ func procBuildInProperty(value []byte) {
 		} else {
 			terminalInfo, err = models.FindTerminalAndUpdate(bson.M{"devEUI": d.Addr}, bson.M{"interval": interval})
 		}
-		if terminalInfo != nil {
+		if err == nil && terminalInfo != nil {
+			var keyBuilder strings.Builder
+			if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+				keyBuilder.WriteString(terminalInfo.APMac)
+				keyBuilder.WriteString(terminalInfo.ModuleID)
+				keyBuilder.WriteString(terminalInfo.NwkAddr)
+			} else {
+				keyBuilder.WriteString(terminalInfo.APMac)
+				keyBuilder.WriteString(terminalInfo.ModuleID)
+				keyBuilder.WriteString(terminalInfo.DevEUI)
+			}
+			publicfunction.DeleteTerminalInfoListCache(keyBuilder.String())
 			switch d.PropertyTopic {
 			case "0x00000003":
 				procIntervalCommand(terminalInfo, interval)
@@ -767,18 +779,33 @@ func procUpdateTerminal(value []byte) {
 	d := data{}
 	err := json.Unmarshal(value, &d)
 	if err == nil {
+		var terminalInfo *config.TerminalInfo = nil
 		if constant.Constant.UsePostgres {
-			oSet := make(map[string]interface{})
+			oSet := make(map[string]interface{}, 1)
 			oSet["tmnname"] = d.TmnName
-			_, err := models.FindTerminalAndUpdateByOIDIndexPG(d.TmnOIDIndex, oSet)
+			terminalInfo, err = models.FindTerminalAndUpdateByOIDIndexPG(d.TmnOIDIndex, oSet)
+			oSet = nil
 			if err != nil {
-				globallogger.Log.Errorln("[Kafka] [Consume] OIDIndex : "+d.TmnOIDIndex+" "+"procUpdateTerminal FindTerminalAndUpdateByOIDIndexPG err : ", err)
+				globallogger.Log.Errorln("[Kafka] [Consume] OIDIndex :", d.TmnOIDIndex, "procUpdateTerminal FindTerminalAndUpdateByOIDIndexPG err :", err)
 			}
 		} else {
-			_, err := models.FindTerminalAndUpdateByOIDIndex(d.TmnOIDIndex, bson.M{"tmnName": d.TmnName})
+			terminalInfo, err = models.FindTerminalAndUpdateByOIDIndex(d.TmnOIDIndex, bson.M{"tmnName": d.TmnName})
 			if err != nil {
-				globallogger.Log.Errorln("[Kafka] [Consume] OIDIndex : "+d.TmnOIDIndex+" "+"procUpdateTerminal FindTerminalAndUpdateByOIDIndex err : ", err)
+				globallogger.Log.Errorln("[Kafka] [Consume] OIDIndex :", d.TmnOIDIndex, "procUpdateTerminal FindTerminalAndUpdateByOIDIndex err :", err)
 			}
+		}
+		if terminalInfo != nil {
+			var keyBuilder strings.Builder
+			if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+				keyBuilder.WriteString(terminalInfo.APMac)
+				keyBuilder.WriteString(terminalInfo.ModuleID)
+				keyBuilder.WriteString(terminalInfo.NwkAddr)
+			} else {
+				keyBuilder.WriteString(terminalInfo.APMac)
+				keyBuilder.WriteString(terminalInfo.ModuleID)
+				keyBuilder.WriteString(terminalInfo.DevEUI)
+			}
+			publicfunction.DeleteTerminalInfoListCache(keyBuilder.String())
 		}
 	}
 }

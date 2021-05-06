@@ -95,7 +95,7 @@ func genPowerCfgProcAttribute(terminalInfo config.TerminalInfo, attributeName st
 			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"genPowerCfgProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "genPowerCfgProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -111,17 +111,15 @@ func genPowerCfgProcReadRsp(terminalInfo config.TerminalInfo, command interface{
 }
 
 func procGenPowerCfgProcRead(devEUI string, dstEndpointIndex int, clusterID uint16) {
-	cmd := common.Command{
-		DstEndpointIndex: dstEndpointIndex,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.ReadAttribute,
 		ClusterID:   clusterID,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: dstEndpointIndex,
+		},
+	})
 }
 
 func genPowerCfgProcKeepAlive(devEUI string, tmnType string, interval uint16) {
@@ -130,26 +128,26 @@ func genPowerCfgProcKeepAlive(devEUI string, tmnType string, interval uint16) {
 		keepalive.ProcKeepAlive(devEUI, interval)
 		go procGenPowerCfgProcRead(devEUI, 0, 0x0402)
 		go func() {
-			select {
-			case <-time.After(time.Duration(2) * time.Second):
-				procGenPowerCfgProcRead(devEUI, 0, 0x0405)
-			}
+			timer := time.NewTimer(2 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenPowerCfgProcRead(devEUI, 0, 0x0405)
 		}()
 		go func() {
-			select {
-			case <-time.After(time.Duration(4) * time.Second):
-				procGenPowerCfgProcRead(devEUI, 0, 0x0415)
-			}
+			timer := time.NewTimer(4 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenPowerCfgProcRead(devEUI, 0, 0x0415)
 		}()
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
 		keepalive.ProcKeepAlive(devEUI, interval)
 		go procGenPowerCfgProcRead(devEUI, 0, 0x0402)
 		go func() {
-			select {
-			case <-time.After(time.Duration(2) * time.Second):
-				procGenPowerCfgProcRead(devEUI, 0, 0x0405)
-			}
+			timer := time.NewTimer(2 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenPowerCfgProcRead(devEUI, 0, 0x0405)
 		}()
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
@@ -208,21 +206,20 @@ func genPowerCfgProcConfigureReportingResponse(terminalInfo config.TerminalInfo,
 			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicConfirmMessage, string(confirmMsgByte))
 		}
 	}
+	if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM {
+		iotsmartspace.ProcHEIMANHTEM(terminalInfo, 2)
+	}
 }
 
 // GenPowerCfgProc 处理clusterID 0x0001即genPowerCfg属性消息
 func GenPowerCfgProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][GenPowerCfgProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][GenPowerCfgProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		genPowerCfgProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
-		genPowerCfgProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
+	case "ConfigureReportingResponse":
 		genPowerCfgProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReporting)].Name:
+	case "ReportAttributes":
+		genPowerCfgProcReport(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][GenPowerCfgProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

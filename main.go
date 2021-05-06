@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,8 +29,7 @@ import (
 var defaultConfigs = make(map[string]interface{})
 
 func loggerInit() {
-	loggercfg := defaultConfigs["logger"].(map[string]interface{})
-	globallogger.Init(loggercfg)
+	globallogger.Init(defaultConfigs["logger"].(map[string]interface{}))
 }
 
 func connectToRedis() error {
@@ -53,10 +51,11 @@ func connectToRedis() error {
 	if redisConnParas["useAlone"].(bool) {
 		globalredisclient.MyZigbeeServerRedisClient, err = redis.NewClientPool(host, port, password)
 	} else {
-		globalredisclient.MyZigbeeServerRedisClient, err = redis.NewClusterClient(host, port, password)
+		servers := []string{host + ":" + port}
+		globalredisclient.MyZigbeeServerRedisClient, err = redis.NewClusterClient(servers, password)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("couldn't create redis client: ", err.Error())
+		globallogger.Log.Errorln("couldn't create redis client:", err.Error())
 		return err
 	}
 	globallogger.Log.Infoln("create redis client sucess")
@@ -66,34 +65,31 @@ func connectToRedis() error {
 func reConnectMongoDB(mongoURL string) {
 	var err error
 	timer := time.NewTimer(30 * time.Second)
-	select {
-	case <-timer.C:
-		mongo.MongoClient, err = mongo.NewClient(mongoURL)
-		if err != nil {
-			globallogger.Log.Errorln("[MongoDB][Reconnect] couldn't open mongo:", err.Error())
-			reConnectMongoDB(mongoURL)
-		} else {
-			globallogger.Log.Warnf("[MongoDB][Reconnect] connect success: %+v", mongo.MongoClient)
-			keepAliveMongoDB(mongoURL, mongo.MongoClient)
-		}
+	<-timer.C
+	mongo.MongoClient, err = mongo.NewClient(mongoURL)
+	if err != nil {
+		globallogger.Log.Errorln("[MongoDB][Reconnect] couldn't open mongo:", err.Error())
+		reConnectMongoDB(mongoURL)
+	} else {
+		globallogger.Log.Warnf("[MongoDB][Reconnect] connect success: %+v", mongo.MongoClient)
+		keepAliveMongoDB(mongoURL, mongo.MongoClient)
 	}
 }
 func keepAliveMongoDB(mongoURL string, client *mongo.Client) {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
-		select {
-		case <-ticker.C:
-			err := client.Session.Ping()
+		<-ticker.C
+		err := client.Session.Ping()
+		if err != nil {
+			mongo.MongoClient, err = mongo.NewClient(mongoURL)
 			if err != nil {
-				mongo.MongoClient, err = mongo.NewClient(mongoURL)
-				if err != nil {
-					globallogger.Log.Errorln("[MongoDB][KeepAlive] couldn't open mongo:", err.Error())
-				} else {
-					globallogger.Log.Warnf("[MongoDB][KeepAlive] connect success: %+v", mongo.MongoClient)
-				}
+				globallogger.Log.Errorln("[MongoDB][KeepAlive] couldn't open mongo:", err.Error())
 			} else {
-				globallogger.Log.Warnf("[MongoDB][KeepAlive] Ping success")
+				globallogger.Log.Warnf("[MongoDB][KeepAlive] connect success: %+v", mongo.MongoClient)
 			}
+		} else {
+			globallogger.Log.Warnf("[MongoDB][KeepAlive] Ping success")
 		}
 	}
 }
@@ -134,8 +130,7 @@ func connectToMongoDB() error {
 }
 
 func connectToMQTT() {
-	var mqttConnParas map[string]interface{}
-	mqttConnParas = defaultConfigs["mqttConnParas"].(map[string]interface{})
+	mqttConnParas := defaultConfigs["mqttConnParas"].(map[string]interface{})
 	userName := mqttConnParas["userName"].(string)
 	password := mqttConnParas["password"].(string)
 	host := mqttConnParas["host"].(string)
@@ -173,19 +168,6 @@ func subscribeFromMQTT() {
 			iotsmartspace.ProcSubMsg(topic, msg)
 		})
 	}
-	timerID := time.NewTicker(time.Duration(2*60) * time.Second)
-	go func() {
-		for {
-			select {
-			case <-timerID.C:
-				for _, topic := range subTopics {
-					mqtt.Subscribe(topic, func(topic string, msg []byte) {
-						iotsmartspace.ProcSubMsg(topic, msg)
-					})
-				}
-			}
-		}
-	}()
 }
 
 func connectToRabbitMQ() {
@@ -282,8 +264,6 @@ func main() {
 		go func() {
 			/* 连接MQTT */
 			connectToMQTT()
-			/* MQTT订阅消息 */
-			subscribeFromMQTT()
 		}()
 	}
 	if defaultConfigs["useRabbitMQ"].(bool) {
@@ -304,47 +284,50 @@ func main() {
 	go httpapi.NewServer()
 	/* Terminal State Smooth */
 	go func() {
-		timer := time.NewTimer(time.Minute)
-		select {
-		case <-timer.C:
-			terminalStateSmooth()
+		for {
+			if mqtt.GetConnectFlag() {
+				/* MQTT订阅消息 */
+				subscribeFromMQTT()
+				terminalStateSmooth()
+				mqtt.SetConnectFlag(false)
+			}
+			time.Sleep(time.Minute)
 		}
 	}()
 
 	// memoryCache内存监测
 	if defaultConfigs["memoryCacheMonitor"].(bool) {
 		var tickerID = time.NewTicker(time.Duration(10*60) * time.Second)
+		defer tickerID.Stop()
 		go func() {
 			for {
-				select {
-				case <-tickerID.C:
-					globalmemorycache.MemoryCache.GetMemorySize()
-				}
+				<-tickerID.C
+				globalmemorycache.MemoryCache.GetMemorySize()
 			}
 		}()
 	}
+
+	// prometheus监测
+	// if defaultConfigs["prometheus"].(bool) {
+	// 	go func() {
+	// 		metrics.PrometheusStart()
+	// 	}()
+	// }
+
+	// go func() {
+	// 	http.ListenAndServe("0.0.0.0:8080", nil)
+	// }()
 
 	wait(defaultConfigs["multipleInstances"].(bool))
 	globallogger.Log.Infoln("**************** h3c-zigbeeserver exit ****************")
 }
 
 func wait(multipleInstances bool) { //<-chan os.Signal
-	sig := make(chan os.Signal)
+	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
-	select {
-	case <-sig:
-		if multipleInstances {
-			globalredisclient.MyZigbeeServerRedisClient.CloseSession()
-		}
-		//mongo.MongoClient.CloseSession()
+	<-sig
+	if multipleInstances {
+		globalredisclient.MyZigbeeServerRedisClient.CloseSession()
 	}
-}
-
-func listenForInterrupt(errChan chan error) {
-	go func() {
-		c := make(chan os.Signal)
-		signal.Notify(c, os.Interrupt)
-		errChan <- fmt.Errorf("%s", <-c)
-	}()
 }

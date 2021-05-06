@@ -22,7 +22,7 @@ func TestClient(t *testing.T) {
 		os.Exit(1)
 	}
 	defer session.Close()
-	dbnames, err := session.DatabaseNames()
+	dbnames, _ := session.DatabaseNames()
 	fmt.Println(dbnames)
 	// err = session.DB("fortest").AddUser("mydb", "mydb", false)
 	// if err != nil {
@@ -32,7 +32,7 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		fmt.Println("create collection cc err", err)
 	}
-	cnames, err := session.DB("mydb").CollectionNames()
+	cnames, _ := session.DB("mydb").CollectionNames()
 	fmt.Println(cnames)
 	// err = session.DB("mydb").C("bb").Insert(map[string]interface{}{"testbb": "bb"})
 	// if err != nil {

@@ -6,11 +6,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-//var once sync.Once
-
-//RedisClient RedisClient
-var RedisClient *Client
-
 // Client represents a Redis client
 type Client struct {
 	Pool *redis.Pool // A thread-safe pool of connections to Redis
@@ -29,7 +24,7 @@ func NewClientPool(host string, port string, password string) (*Client, error) {
 			"tcp", connectionString, opts...,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("Could not dial Redis: %s", err)
+			return nil, err
 		}
 		return conn, nil
 	}

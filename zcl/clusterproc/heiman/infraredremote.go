@@ -5,8 +5,10 @@ import (
 
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/constant"
+	"github.com/h3c/iotzigbeeserver-go/db/kafka"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 	"github.com/h3c/iotzigbeeserver-go/interactmodule/iotsmartspace"
+	"github.com/h3c/iotzigbeeserver-go/publicstruct"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/cluster"
 )
@@ -32,6 +34,26 @@ func infraredRemoteProcStudyKeyResponse(terminalInfo config.TerminalInfo, comman
 		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
 	} else if constant.Constant.Iotedge {
 		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+	} else if constant.Constant.Iotprivate {
+		type appDataMsg struct {
+			StudyKeyResponse cluster.HEIMANInfraredRemoteStudyKeyResponse `json:"studyKeyResponse"`
+		}
+		kafkaMsg := publicstruct.DataReportMsg{
+			OIDIndex:   terminalInfo.OIDIndex,
+			DevSN:      terminalInfo.DevEUI,
+			LinkType:   terminalInfo.ProfileID,
+			DeviceType: terminalInfo.TmnType2,
+			AppData: appDataMsg{
+				StudyKeyResponse: cluster.HEIMANInfraredRemoteStudyKeyResponse{
+					ID:           Command.ID,
+					KeyCode:      Command.KeyCode,
+					ResultStatus: Command.ResultStatus,
+				},
+			},
+		}
+		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+		globallogger.Log.Infof("[devEUI: %v][infraredRemoteProcStudyKeyResponse]: kafkaMsg: %s", terminalInfo.DevEUI, string(kafkaMsgByte))
+		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	}
 }
 
@@ -56,21 +78,40 @@ func infraredRemoteProcCreateIDResponse(terminalInfo config.TerminalInfo, comman
 		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
 	} else if constant.Constant.Iotedge {
 		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+	} else if constant.Constant.Iotprivate {
+		type appDataMsg struct {
+			CreateIDResponse cluster.HEIMANInfraredRemoteCreateIDResponse `json:"createIDResponse"`
+		}
+		kafkaMsg := publicstruct.DataReportMsg{
+			OIDIndex:   terminalInfo.OIDIndex,
+			DevSN:      terminalInfo.DevEUI,
+			LinkType:   terminalInfo.ProfileID,
+			DeviceType: terminalInfo.TmnType2,
+			AppData: appDataMsg{
+				CreateIDResponse: cluster.HEIMANInfraredRemoteCreateIDResponse{
+					ID:        Command.ID,
+					ModelType: Command.ModelType,
+				},
+			},
+		}
+		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+		globallogger.Log.Infof("[devEUI: %v][infraredRemoteProcCreateIDResponse]: kafkaMsg: %s", terminalInfo.DevEUI, string(kafkaMsgByte))
+		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	}
 }
 
-// infraredRemoteProcGetIDAndKeyCodeListResponse 处理StudyKeyResponse（0xf2）消息
+// infraredRemoteProcGetIDAndKeyCodeListResponse 处理GetIDAndKeyCodeListResponse（0xf6）消息
 func infraredRemoteProcGetIDAndKeyCodeListResponse(terminalInfo config.TerminalInfo, command interface{}, msgID interface{}) {
 	type idKeyCode struct {
 		ID        uint8   `json:"ID"`
-		ModelType uint8   `json:"ModelType"`
-		KeyNum    uint8   `json:"KeyNum"`
-		KeyCode   []uint8 `json:"KeyCode"`
+		ModelType uint8   `json:"modelType"`
+		KeyNum    uint8   `json:"keyNum"`
+		KeyCode   []uint8 `json:"keyCode"`
 	}
 	type getIDAndKeyCodeListResponse struct {
-		PacketNumSum        uint8       `json:"ID"`
-		CurrentPacketNum    uint8       `json:"CurrentPacketNum"`
-		CurrentPacketLength uint8       `json:"CurrentPacketLength"`
+		PacketNumSum        uint8       `json:"packetNumSum"`
+		CurrentPacketNum    uint8       `json:"currentPacketNum"`
+		CurrentPacketLength uint8       `json:"currentPacketLength"`
 		IDKeyCodeList       []idKeyCode `json:"IDKeyCodeList"`
 	}
 	Command := command.(*cluster.HEIMANInfraredRemoteGetIDAndKeyCodeListResponse)
@@ -79,6 +120,7 @@ func infraredRemoteProcGetIDAndKeyCodeListResponse(terminalInfo config.TerminalI
 		PacketNumSum:        Command.PacketNumSum,
 		CurrentPacketNum:    Command.CurrentPacketNum,
 		CurrentPacketLength: Command.CurrentPacketLength,
+		IDKeyCodeList:       []idKeyCode{},
 	}
 	for len(Command.IDKeyCodeList) > 0 {
 		IDKeyCode := idKeyCode{
@@ -106,16 +148,23 @@ func infraredRemoteProcGetIDAndKeyCodeListResponse(terminalInfo config.TerminalI
 		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, string(result), msgID)
 	} else if constant.Constant.Iotedge {
 		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+	} else if constant.Constant.Iotprivate {
+		kafkaMsg := publicstruct.DataReportMsg{
+			OIDIndex:   terminalInfo.OIDIndex,
+			DevSN:      terminalInfo.DevEUI,
+			LinkType:   terminalInfo.ProfileID,
+			DeviceType: terminalInfo.TmnType2,
+			AppData:    value,
+		}
+		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+		globallogger.Log.Infof("[devEUI: %v][infraredRemoteProcGetIDAndKeyCodeListResponse]: kafkaMsg: %s", terminalInfo.DevEUI, string(kafkaMsgByte))
+		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	}
 }
 
 // InfraredRemoteProc 处理clusterID 0xfc82属性消息
 func InfraredRemoteProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame, msgID interface{}, contentFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][InfraredRemoteProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][InfraredRemoteProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandDefaultResponse)].Name:
 	case "StudyKeyResponse":
 		infraredRemoteProcStudyKeyResponse(terminalInfo, zclFrame.Command, msgID)
 	case "CreateIDResponse":

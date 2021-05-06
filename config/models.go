@@ -58,7 +58,7 @@ func (t TerminalInfo) TableName() string {
 type TerminalInfo struct {
 	ID                         uint           `json:"id" bson:"-" gorm:"primary_key"`
 	TmnName                    string         `json:"tmnName" bson:"tmnName,omitempty" gorm:"column:tmnname"`
-	DevEUI                     string         `json:"devEUI" bson:"devEUI,omitempty" gorm:"column:deveui"`
+	DevEUI                     string         `json:"devEUI" bson:"devEUI,omitempty" gorm:"column:deveui;uniqueIndex"`
 	UserName                   string         `json:"userName" bson:"userName,omitempty" gorm:"column:username"`
 	ScenarioID                 string         `json:"scenarioID" bson:"scenarioID,omitempty" gorm:"column:scenarioid"`
 	OIDIndex                   string         `json:"OIDIndex" bson:"OIDIndex,omitempty" gorm:"column:oidindex"`
@@ -135,19 +135,6 @@ type TerminalInfo2 struct {
 }
 
 // TableName TableName
-func (t TerminalTimerInfo) TableName() string {
-	return "terminaltimerinfos"
-}
-
-//TerminalTimerInfo TerminalTimerInfo
-type TerminalTimerInfo struct {
-	ID         uint      `json:"id" bson:"-" gorm:"primary_key"`
-	DevEUI     string    `json:"devEUI" bson:"devEUI,omitempty" gorm:"column:deveui"`
-	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
-	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
-}
-
-// TableName TableName
 func (t SocketInfo) TableName() string {
 	return "socketinfos"
 }
@@ -160,68 +147,6 @@ type SocketInfo struct {
 	Family     string    `json:"family" bson:"family,omitempty" gorm:"column:family"` //源socket的IP协议
 	IPAddr     string    `json:"IPAddr" bson:"IPAddr,omitempty" gorm:"column:ipaddr"` //源socket的IP
 	IPPort     int       `json:"IPPort" bson:"IPPort,omitempty" gorm:"column:ipport"` //源socket的port
-	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
-	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
-}
-
-// TableName TableName
-func (t ReSendTimerInfo) TableName() string {
-	return "resendtimerinfos"
-}
-
-//ReSendTimerInfo ReSendTimerInfo
-type ReSendTimerInfo struct {
-	ID         uint      `json:"id" bson:"-" gorm:"primary_key"`
-	MsgKey     string    `json:"msgKey" bson:"msgKey,omitempty" gorm:"column:msgkey"`
-	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
-	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
-}
-
-// TableName TableName
-func (t KeepAliveTimerInfo) TableName() string {
-	return "keepalivetimerinfos"
-}
-
-//KeepAliveTimerInfo KeepAliveTimerInfo
-type KeepAliveTimerInfo struct {
-	ID         uint      `json:"id" bson:"-" gorm:"primary_key"`
-	APMac      string    `json:"APMac" bson:"APMac,omitempty" gorm:"column:apmac"`
-	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
-	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
-}
-
-// TableName TableName
-func (t TmnNwkInfo) TableName() string {
-	return "tmnnwkinfos"
-}
-
-//TmnNwkInfo TmnNwkInfo
-type TmnNwkInfo struct {
-	ID           uint       `json:"id" bson:"-" gorm:"primary_key"`
-	UserName     string     `json:"userName" bson:"userName,omitempty" gorm:"column:username"`
-	ScenarioID   string     `json:"scenarioID" bson:"scenarioID,omitempty" gorm:"column:scenarioid"`
-	ACMac        string     `json:"ACMac" bson:"ACMac,omitempty" gorm:"column:acmac"`
-	APMac        string     `json:"APMac" bson:"APMac,omitempty" gorm:"column:apmac"`
-	ModuleID     string     `json:"moduleID" bson:"moduleID,omitempty" gorm:"column:moduleid"`
-	Status       []string   `json:"status" bson:"status,omitempty" gorm:"-"`             //SUCCESS(0) or FAILURE(1)
-	IEEEAddr     []string   `json:"IEEEAddr" bson:"IEEEAddr,omitempty" gorm:"-"`         //设备物理地址
-	NwkAddr      []string   `json:"nwkAddr" bson:"nwkAddr,omitempty" gorm:"-"`           //设备网络地址
-	StartIndex   []string   `json:"startIndex" bson:"startIndex,omitempty" gorm:"-"`     //暂时为0x00
-	NumAssocDev  []int      `json:"numAssocDev" bson:"numAssocDev,omitempty" gorm:"-"`   //设备孩子节点个数
-	AssocDevList [][]string `json:"assocDevList" bson:"assocDevList,omitempty" gorm:"-"` //设备孩子节点列表，包含2个字节的短地址
-	UpdateTime   time.Time  `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
-	CreateTime   time.Time  `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
-}
-
-// TableName TableName
-func (t MsgCheckTimerInfo) TableName() string {
-	return "msgchecktimerinfos"
-}
-
-//MsgCheckTimerInfo MsgCheckTimerInfo
-type MsgCheckTimerInfo struct {
-	ID         uint      `json:"id" bson:"-" gorm:"primary_key"`
-	MsgKey     string    `json:"msgKey" bson:"msgKey,omitempty" gorm:"column:msgkey"`
 	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
 	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
 }

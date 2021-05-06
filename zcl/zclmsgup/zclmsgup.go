@@ -2,6 +2,7 @@ package zclmsgup
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/dyrkin/znp-go"
 	"github.com/h3c/iotzigbeeserver-go/config"
@@ -16,9 +17,7 @@ func ProcZclUpMsg(terminalInfo config.TerminalInfo, afIncomingMessage znp.AfInco
 	contentData string, zclAfIncomingMessage *zcl.IncomingMessage) {
 	globallogger.Log.Infof("[devEUI: %v][ProcZclUpMsg] afIncomingMessage: %+v", terminalInfo.DevEUI, afIncomingMessage)
 	// groupID := afIncomingMessage.GroupID
-	clusterID := afIncomingMessage.ClusterID
 	// srcAddr := afIncomingMessage.SrcAddr
-	srcEndpoint := afIncomingMessage.SrcEndpoint
 	// dstEndpoint := afIncomingMessage.DstEndpoint
 	// wasBroadcast := afIncomingMessage.WasBroadcast
 	// linkQuality := afIncomingMessage.LinkQuality
@@ -27,42 +26,40 @@ func ProcZclUpMsg(terminalInfo config.TerminalInfo, afIncomingMessage znp.AfInco
 	// transSeqNumber := afIncomingMessage.TransSeqNumber
 	// zclData := afIncomingMessage.Data
 
-	z := zcl.New()
 	var err error
 	if zclAfIncomingMessage == nil {
-		zclAfIncomingMessage, err = z.ToZclIncomingMessage(&afIncomingMessage)
+		zclAfIncomingMessage, err = zcl.ZCLObj().ToZclIncomingMessage(&afIncomingMessage)
 	}
 	if err != nil {
 		globallogger.Log.Errorf("[devEUI: %v][ProcZclUpMsg] err: %v", terminalInfo.DevEUI, err)
 	} else {
-		// globallogger.Log.Infof("[devEUI: %v][ProcZclUpMsg] zclAfIncomingMessage: %+v", terminalInfo.DevEUI, zclAfIncomingMessage)
 		var contentZclAfIncomingMessage *zcl.IncomingMessage = nil
 		var dataTemp = ""
 		if contentData != "" {
-			contentData = contentData[10:]
+			contentData = strings.Repeat(contentData[10:], 1)
 			dataTemp = contentData
 			var data []uint8
 			for len(contentData) != 0 {
-				value, _ := strconv.ParseUint(contentData[:2], 16, 8)
+				value, _ := strconv.ParseUint(strings.Repeat(contentData[:2], 1), 16, 8)
 				data = append(data, uint8(value))
-				contentData = contentData[2:]
+				contentData = strings.Repeat(contentData[2:], 1)
 			}
 			afIncomingMessage.Data = data
-			contentZclAfIncomingMessage, err = z.ToZclIncomingMessage(&afIncomingMessage)
+			contentZclAfIncomingMessage, err = zcl.ZCLObj().ToZclIncomingMessage(&afIncomingMessage)
 			if err != nil {
 				globallogger.Log.Errorf("[devEUI: %v][ProcZclUpMsg] contentZclAfIncomingMessage err: %v", terminalInfo.DevEUI, err)
 			}
 		}
-		if z.ClusterLibrary().Clusters()[cluster.ID(clusterID)] != nil {
-			clusterIDByStr := z.ClusterLibrary().Clusters()[cluster.ID(clusterID)].Name
+		if zcl.ZCLObj().ClusterLibrary().Clusters()[cluster.ID(afIncomingMessage.ClusterID)] != nil {
+			clusterIDByStr := zcl.ZCLObj().ClusterLibrary().Clusters()[cluster.ID(afIncomingMessage.ClusterID)].Name
 			globallogger.Log.Infof("[devEUI: %v][ProcZclUpMsg] clusterID: %v", terminalInfo.DevEUI, clusterIDByStr)
 			if contentZclAfIncomingMessage != nil && contentZclAfIncomingMessage.Data != nil {
-				clusterproc.ClusterProc(terminalInfo, srcEndpoint, zclAfIncomingMessage.Data, clusterIDByStr, msgID, contentZclAfIncomingMessage.Data, dataTemp)
+				clusterproc.ClusterProc(terminalInfo, afIncomingMessage.SrcEndpoint, zclAfIncomingMessage.Data, clusterIDByStr, msgID, contentZclAfIncomingMessage.Data, dataTemp)
 			} else {
-				clusterproc.ClusterProc(terminalInfo, srcEndpoint, zclAfIncomingMessage.Data, clusterIDByStr, msgID, nil, "")
+				clusterproc.ClusterProc(terminalInfo, afIncomingMessage.SrcEndpoint, zclAfIncomingMessage.Data, clusterIDByStr, msgID, nil, "")
 			}
 		} else {
-			globallogger.Log.Infof("[devEUI: %v][ProcZclUpMsg] invalid clusterID: %v", terminalInfo.DevEUI, clusterID)
+			globallogger.Log.Infof("[devEUI: %v][ProcZclUpMsg] invalid clusterID: %v", terminalInfo.DevEUI, afIncomingMessage.ClusterID)
 		}
 	}
 }

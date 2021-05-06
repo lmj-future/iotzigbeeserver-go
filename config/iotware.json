@@ -44,6 +44,7 @@
   },
   "multipleInstances" : false,
   "memoryCacheMonitor" : false,
+  "prometheus" : true,
   "usePostgres" : true,
   "useRabbitMQ" : false,
   "useKafka" : false,

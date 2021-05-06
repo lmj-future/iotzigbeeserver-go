@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +30,7 @@ func collihigh4To20mAParse(min int, max int, value float64) float64 {
 func collihighSensorParsePM25(devEUI string, c0 string, c0Type string, c0Data string) float64 {
 	var value float64 = 0
 	if c0 != "c0" {
-		globallogger.Log.Warnln("devEUI : " + devEUI + " " + "collihighSensorParsePM25 c0 is not match : " + c0)
+		globallogger.Log.Warnln("devEUI :", devEUI, "collihighSensorParsePM25 c0 is not match :", c0)
 	} else {
 		switch c0Type {
 		case "03":
@@ -42,9 +42,9 @@ func collihighSensorParsePM25(devEUI string, c0 string, c0Type string, c0Data st
 			} else {
 				value = collihigh4To20mAParse(0, 999, value)
 			}
-			globallogger.Log.Infoln("devEUI : "+devEUI+" "+"collihighSensorParsePM25 value: ", value)
+			globallogger.Log.Infoln("devEUI :", devEUI, "collihighSensorParsePM25 value:", value)
 		default:
-			globallogger.Log.Warnln("devEUI : " + devEUI + " " + "collihighSensorParsePM25 c0Type is unknow : " + c0Type)
+			globallogger.Log.Warnln("devEUI :", devEUI, "collihighSensorParsePM25 c0Type is unknow :", c0Type)
 		}
 	}
 	return value
@@ -53,7 +53,7 @@ func collihighSensorParsePM25(devEUI string, c0 string, c0Type string, c0Data st
 func collihighSensorParseLighting(devEUI string, c1 string, c1Type string, c1Data string) float64 {
 	var value float64 = 0
 	if c1 != "c1" {
-		globallogger.Log.Warnln("devEUI : " + devEUI + " " + "collihighSensorParseLighting c1 is not match : " + c1)
+		globallogger.Log.Warnln("devEUI :", devEUI, "collihighSensorParseLighting c1 is not match :", c1)
 	} else {
 		switch c1Type {
 		case "03":
@@ -65,9 +65,9 @@ func collihighSensorParseLighting(devEUI string, c1 string, c1Type string, c1Dat
 			} else {
 				value = collihigh4To20mAParse(0, 20000, value)
 			}
-			globallogger.Log.Infoln("devEUI : "+devEUI+" "+"collihighSensorParseLighting value: ", value)
+			globallogger.Log.Infoln("devEUI :", devEUI, "collihighSensorParseLighting value:", value)
 		default:
-			globallogger.Log.Warnln("devEUI : " + devEUI + " " + "collihighSensorParseLighting c1Type is unknow : " + c1Type)
+			globallogger.Log.Warnln("devEUI :", devEUI, "collihighSensorParseLighting c1Type is unknow :", c1Type)
 		}
 	}
 	return value
@@ -80,60 +80,46 @@ type SendorAttr struct {
 }
 
 func collihighSensorParse(devEUI string, Data string) []SendorAttr {
-	var c0 = Data[26:28]
-	var c0Type = Data[28:30]
-	var c0Data = Data[30:34]
-	var c1 = Data[34:36]
-	var c1Type = Data[36:38]
-	var c1Data = Data[38:42]
-	//var c2 = Data[42:44]
-	//var c2Type = Data[44:46]
-	//var c2Data = Data[46:50]
-	//var c3 = Data[50:52]
-	//var c3Type = Data[52:54]
-	//var c3Data = Data[54:58]
-	var c0Value float64 = 0
-	var c1Value float64 = 0
-	var c2Value float64 = 0
-	var c3Value float64 = 0
-
-	c0Value = collihighSensorParsePM25(devEUI, c0, c0Type, c0Data)
-	c1Value = collihighSensorParseLighting(devEUI, c1, c1Type, c1Data)
+	//var c2 = strings.Repeat(Data[42:44], 1)
+	//var c2Type = strings.Repeat(Data[44:46], 1)
+	//var c2Data = strings.Repeat(Data[46:50], 1)
+	//var c3 = strings.Repeat(Data[50:52], 1)
+	//var c3Type = strings.Repeat(Data[52:54], 1)
+	//var c3Data = strings.Repeat(Data[54:58], 1)
 	return []SendorAttr{
 		{
 			Attribute: "51",
-			Data:      c0Value,
+			Data:      collihighSensorParsePM25(devEUI, strings.Repeat(Data[26:28], 1), strings.Repeat(Data[28:30], 1), strings.Repeat(Data[30:34], 1)),
 		},
 		{
 			Attribute: "03",
-			Data:      c1Value,
+			Data:      collihighSensorParseLighting(devEUI, strings.Repeat(Data[34:36], 1), strings.Repeat(Data[36:38], 1), strings.Repeat(Data[38:42], 1)),
 		},
 		{
 			Attribute: "00",
-			Data:      c2Value,
+			Data:      0,
 		},
 		{
 			Attribute: "00",
-			Data:      c3Value,
+			Data:      0,
 		},
 	}
 }
 
 func collihighSensorDataProc(devEUI string, data string, terminalInfo config.TerminalInfo) {
-	globallogger.Log.Infoln("devEUI : " + devEUI + " " + "collihighSensorDataProc")
-	// var profileID = data[0:4]
-	// var GroupID = data[4:8]
-	// var ClusterID = data[8:12]
-	// var SrcAddr = data[12:16]
-	// var SrcEndpoint = data[16:18]
-	// var DestEndpoint = data[18:20]
-	// var WasBroadcast = data[20:22]
-	// var LinkQuality = data[22:24]
-	// var SecurityUse = data[24:26]
-	// var Timestamp = data[26:34]
-	// var TransSeqNumber = data[34:36]
-	// var Len = data[36:38]
-	var Data = data[38:]
+	globallogger.Log.Infoln("devEUI :", devEUI, "collihighSensorDataProc")
+	// var profileID = strings.Repeat(data[0:4], 1)
+	// var GroupID = strings.Repeat(data[4:8], 1)
+	// var ClusterID = strings.Repeat(data[8:12], 1)
+	// var SrcAddr = strings.Repeat(data[12:16], 1)
+	// var SrcEndpoint = strings.Repeat(data[16:18], 1)
+	// var DestEndpoint = strings.Repeat(data[18:20], 1)
+	// var WasBroadcast = strings.Repeat(data[20:22], 1)
+	// var LinkQuality = strings.Repeat(data[22:24], 1)
+	// var SecurityUse = strings.Repeat(data[24:26], 1)
+	// var Timestamp = strings.Repeat(data[26:34], 1)
+	// var TransSeqNumber = strings.Repeat(data[34:36], 1)
+	// var Len = strings.Repeat(data[36:38], 1)
 
 	var sendMsg = struct {
 		TmnName   string      `json:"tmnName"`
@@ -151,72 +137,78 @@ func collihighSensorDataProc(devEUI string, data string, terminalInfo config.Ter
 	sendMsg.OIDIndex = terminalInfo.OIDIndex
 	sendMsg.FirmTopic = terminalInfo.FirmTopic
 	sendMsg.TmnType = terminalInfo.TmnType
-	sendMsg.Time = time.Now() //new Date().getTime();
+	sendMsg.Time = time.Now()
 	if terminalInfo.TmnType == constant.Constant.TMNTYPE.COLLIHIGH.ZigbeeTerminalLightingPM25 {
-		sendMsg.Data = collihighSensorParse(devEUI, Data)
+		sendMsg.Data = collihighSensorParse(devEUI, strings.Repeat(data[38:], 1))
 	} else {
-		sendMsg.Data = Data
+		sendMsg.Data = strings.Repeat(data[38:], 1)
 	}
 
-	globallogger.Log.Infoln("devEUI : " + devEUI + " " + "collihighSensorDataProc sendMsg: " + fmt.Sprintf("%+v", sendMsg))
+	globallogger.Log.Infof("devEUI : %+v collihighSensorDataProc sendMsg: %+v", devEUI, sendMsg)
 	sendMsgSerial, _ := json.Marshal(sendMsg)
 	//mqhd.SendMsg("iotenvmonitorns", sendMsgSerial)
 	kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicCollihighSensorDataUp, string(sendMsgSerial))
 	if constant.Constant.UsePostgres {
-		models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, map[string]interface{}{"attributedata": Data})
+		models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, map[string]interface{}{"attributedata": strings.Repeat(data[38:], 1)})
 	} else {
-		models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, config.TerminalInfo{Attribute: config.Attribute{Data: Data}})
+		models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, config.TerminalInfo{Attribute: config.Attribute{Data: strings.Repeat(data[38:], 1)}})
 	}
 }
 
 func collihighTerminalStatusProc(devEUI string, t int) {
-	if value, ok := zigbeeServerColliHighTimerID.Load(devEUI); ok {
-		value.(*time.Timer).Stop()
-		globallogger.Log.Infoln("devEUI: "+devEUI+" collihighTerminalStatusProc clearTimeout, time: ", t)
-	}
+	// if value, ok := zigbeeServerColliHighTimerID.Load(devEUI); ok {
+	// 	value.(*time.Timer).Stop()
+	// }
 	//3次未收到数据报文，通知离线
-	var timerID = time.NewTimer(time.Duration(3*t) * time.Second)
+	var timerID = time.NewTimer(time.Duration(3*t+3) * time.Second)
 	zigbeeServerColliHighTimerID.Store(devEUI, timerID)
 	go func() {
-		select {
-		case <-timerID.C:
-			if value, ok := zigbeeServerColliHighTimerID.Load(devEUI); ok {
-				if timerID == value.(*time.Timer) {
-					zigbeeServerColliHighTimerID.Delete(devEUI)
-					terminalTimerInfo, _ := publicfunction.GetTerminalTimerByDevEUI(devEUI)
-					if terminalTimerInfo != nil {
-						var dateNow = time.Now()
-						var num = dateNow.UnixNano() - terminalTimerInfo.UpdateTime.UnixNano()
-						var terminalInfo *config.TerminalInfo
-						var err error
-						if constant.Constant.UsePostgres {
-							terminalInfo, err = models.GetTerminalInfoByDevEUIPG(devEUI)
-						} else {
-							terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
-						}
-						if terminalInfo != nil && terminalInfo.Interval != 0 {
-							t = terminalInfo.Interval
-						}
-						if num > int64(time.Duration(3*t)*time.Second) {
-							globallogger.Log.Infoln("devEUI: "+devEUI+" collihighTerminalStatusProc server has not already recv collihigh data for ",
-								num/int64(time.Second), " seconds. Then terminal offline")
-							publicfunction.TerminalOffline(devEUI)
-							if err == nil && terminalInfo != nil {
-								if constant.Constant.Iotware {
-									if !terminalInfo.LeaveState {
-										iotsmartspace.StateTerminalOfflineIotware(*terminalInfo)
-									} else {
-										iotsmartspace.StateTerminalLeaveIotware(*terminalInfo)
-									}
-								} else if constant.Constant.Iotedge {
-									if !terminalInfo.LeaveState {
-										iotsmartspace.StateTerminalOffline(devEUI)
-									} else {
-										iotsmartspace.StateTerminalLeave(devEUI)
-									}
+		<-timerID.C
+		timerID.Stop()
+		if value, ok := zigbeeServerColliHighTimerID.Load(devEUI); ok {
+			if timerID == value.(*time.Timer) {
+				zigbeeServerColliHighTimerID.Delete(devEUI)
+				var terminalTimerUpdateTime int64
+				var err error
+				if constant.Constant.MultipleInstances {
+					terminalTimerUpdateTime, err = publicfunction.TerminalTimerRedisGet(devEUI)
+				} else {
+					terminalTimerUpdateTime, err = publicfunction.TerminalTimerFreeCacheGet(devEUI)
+				}
+				if err == nil {
+					var terminalInfo *config.TerminalInfo
+					var err error
+					if constant.Constant.UsePostgres {
+						terminalInfo, err = models.GetTerminalInfoByDevEUIPG(devEUI)
+					} else {
+						terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
+					}
+					if terminalInfo != nil && terminalInfo.Interval != 0 {
+						t = terminalInfo.Interval
+					}
+					if time.Now().UnixNano()-terminalTimerUpdateTime > int64(time.Duration(3*t)*time.Second) {
+						globallogger.Log.Infoln("devEUI:", devEUI, "collihighTerminalStatusProc server has not already recv collihigh data for",
+							(time.Now().UnixNano()-terminalTimerUpdateTime)/int64(time.Second), "seconds. Then terminal offline")
+						publicfunction.TerminalOffline(devEUI)
+						if err == nil && terminalInfo != nil {
+							if constant.Constant.Iotware {
+								if !terminalInfo.LeaveState {
+									iotsmartspace.StateTerminalOfflineIotware(*terminalInfo)
+								} else {
+									iotsmartspace.StateTerminalLeaveIotware(*terminalInfo)
+								}
+							} else if constant.Constant.Iotedge {
+								if !terminalInfo.LeaveState {
+									iotsmartspace.StateTerminalOffline(devEUI)
+								} else {
+									iotsmartspace.StateTerminalLeave(devEUI)
 								}
 							}
-							publicfunction.DeleteTerminalTimer(devEUI)
+						}
+						if constant.Constant.MultipleInstances {
+							publicfunction.DeleteRedisTerminalTimer(devEUI)
+						} else {
+							publicfunction.DeleteFreeCacheTerminalTimer(devEUI)
 						}
 					}
 				}
@@ -256,13 +248,11 @@ func findCollihighTerminalAndUpdate(jsonInfo publicstruct.JSONInfo) (*config.Ter
 		terminalInfo, err = models.FindTerminalAndUpdate(bson.M{"devEUI": jsonInfo.MessagePayload.Address}, setData)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+jsonInfo.MessagePayload.Address+" "+"findCollihighTerminalAndUpdate error : ", err)
+		globallogger.Log.Errorln("devEUI :", jsonInfo.MessagePayload.Address, "findCollihighTerminalAndUpdate error :", err)
 	} else {
 		if terminalInfo == nil {
-			globallogger.Log.Warnln("devEUI : " + jsonInfo.MessagePayload.Address + " " +
+			globallogger.Log.Warnln("devEUI :", jsonInfo.MessagePayload.Address,
 				"findCollihighTerminalAndUpdate terminal is not exist, please first create !")
-		} else {
-			// globallogger.Log.Infoln("devEUI : " + jsonInfo.MessagePayload.Address + " " + "findCollihighTerminalAndUpdate success")
 		}
 	}
 	return terminalInfo, err
@@ -309,15 +299,10 @@ func collihighTerminalCreate(devEUI string, jsonInfo publicstruct.JSONInfo, term
 		err = models.CreateTerminal(setData)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+devEUI+" "+"collihighTerminalCreate createTerminal error : ", err)
-	} else {
-		// globallogger.Log.Infoln("devEUI : "+devEUI+" "+"collihighTerminalCreate createTerminal success ", setData)
+		globallogger.Log.Errorln("devEUI :", devEUI, "collihighTerminalCreate createTerminal error :", err)
 	}
-	//var interval = 60
 	if terminalInfo.Property != nil {
 		if len(terminalInfo.Property) > 0 {
-			//tempVaule, _ := strconv.ParseInt(terminalInfo.property[0].interval, 10, 0) //string转10进制数值
-			//interval = int(tempVaule)
 			if constant.Constant.MultipleInstances {
 				globalrediscache.RedisCache.SetRedisSet(constant.Constant.REDIS.ZigbeeRedisCollihighInterval+devEUI, terminalInfo.Property[0].Interval)
 			} else {
@@ -366,13 +351,11 @@ func collihighTerminalUpdate(jsonInfo publicstruct.JSONInfo, devEUI string) (*co
 		terminalInfo, err = models.FindTerminalAndUpdate(bson.M{"devEUI": jsonInfo.MessagePayload.Address}, setData)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("devEUI : "+jsonInfo.MessagePayload.Address+" "+"collihighTerminalUpdate FindTerminalAndUpdate error : ", err)
+		globallogger.Log.Errorln("devEUI :", jsonInfo.MessagePayload.Address, "collihighTerminalUpdate FindTerminalAndUpdate error :", err)
 	} else {
 		if terminalInfo == nil {
-			globallogger.Log.Warnln("devEUI : " + jsonInfo.MessagePayload.Address + " " +
+			globallogger.Log.Warnln("devEUI :", jsonInfo.MessagePayload.Address,
 				"collihighTerminalUpdate terminal is not exist, please first create !")
-		} else {
-			// globallogger.Log.Infoln("devEUI : " + jsonInfo.MessagePayload.Address + " " + "collihighTerminalUpdate FindTerminalAndUpdate success")
 		}
 	}
 	if err == nil {
@@ -431,13 +414,10 @@ func collihighTerminalUpdate(jsonInfo publicstruct.JSONInfo, devEUI string) (*co
 }
 
 func collihighProc(jsonInfo publicstruct.JSONInfo) {
-	globallogger.Log.Infoln("devEUI : " + jsonInfo.MessagePayload.Address + " " + "collihighProc")
-	var devEUI = jsonInfo.MessagePayload.Address
-	var msgType = jsonInfo.MessageHeader.MsgType
-	var data = jsonInfo.MessagePayload.Data
-	terminalInfo, errorCode := collihighTerminalUpdate(jsonInfo, devEUI)
+	globallogger.Log.Infoln("devEUI :", jsonInfo.MessagePayload.Address, "collihighProc")
+	terminalInfo, errorCode := collihighTerminalUpdate(jsonInfo, jsonInfo.MessagePayload.Address)
 	if errorCode == "" && terminalInfo != nil {
-		if msgType == globalmsgtype.MsgType.UPMsg.ZigbeeDataUpEvent {
+		if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeDataUpEvent {
 			switch terminalInfo.TmnType {
 			case constant.Constant.TMNTYPE.COLLIHIGH.ZigbeeTerminalCO2,
 				constant.Constant.TMNTYPE.COLLIHIGH.ZigbeeTerminalLightingPM25,
@@ -446,21 +426,25 @@ func collihighProc(jsonInfo publicstruct.JSONInfo) {
 				var value string
 				var err error
 				if constant.Constant.MultipleInstances {
-					value, err = globalrediscache.RedisCache.GetRedisGet(constant.Constant.REDIS.ZigbeeRedisCollihighInterval + devEUI)
+					value, err = globalrediscache.RedisCache.GetRedisGet(constant.Constant.REDIS.ZigbeeRedisCollihighInterval + jsonInfo.MessagePayload.Address)
 				} else {
-					value, err = globalmemorycache.MemoryCache.GetMemoryGet(constant.Constant.REDIS.ZigbeeRedisCollihighInterval + devEUI)
+					value, err = globalmemorycache.MemoryCache.GetMemoryGet(constant.Constant.REDIS.ZigbeeRedisCollihighInterval + jsonInfo.MessagePayload.Address)
 				}
 				if err == nil && value != "" {
 					tempVaule, _ := strconv.ParseInt(value, 10, 0) //string转10进制数值
 					interval = int(tempVaule)
 				}
-				err = publicfunction.TerminalTimerUpdateOrCreate(devEUI)
-				if err == nil {
-					collihighTerminalStatusProc(devEUI, interval)
+				if constant.Constant.MultipleInstances {
+					_, err = publicfunction.TerminalTimerRedisSet(jsonInfo.MessagePayload.Address)
+				} else {
+					_, err = publicfunction.TerminalTimerFreeCacheSet(jsonInfo.MessagePayload.Address, int(interval))
 				}
-				collihighSensorDataProc(devEUI, data, *terminalInfo)
+				if err == nil {
+					collihighTerminalStatusProc(jsonInfo.MessagePayload.Address, interval)
+				}
+				collihighSensorDataProc(jsonInfo.MessagePayload.Address, jsonInfo.MessagePayload.Data, *terminalInfo)
 			default:
-				globallogger.Log.Warnln("devEUI : " + devEUI + " " + "unknow tmnType : " + terminalInfo.TmnType)
+				globallogger.Log.Warnln("devEUI :", jsonInfo.MessagePayload.Address, "unknow tmnType :", terminalInfo.TmnType)
 			}
 		}
 	}

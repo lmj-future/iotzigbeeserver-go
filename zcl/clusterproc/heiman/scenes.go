@@ -14,8 +14,6 @@ import (
 
 // ScenesProc 处理clusterID 0xfc80属性消息
 func ScenesProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][ScenesProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][ScenesProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
 	params := make(map[string]interface{}, 2)
 	values := make(map[string]interface{}, 1)
 	params["terminalId"] = terminalInfo.DevEUI
@@ -53,17 +51,15 @@ func ScenesProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
 			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
 		}
 	}
-	cmd := common.Command{
-		TransactionID:    zclFrame.TransactionSequenceNumber,
-		Cmd:              zclFrame.CommandIdentifier,
-		DstEndpointIndex: 0,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      terminalInfo.DevEUI,
 		CommandType: common.HeimanScenesDefaultResponse,
 		ClusterID:   0xfc80,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			TransactionID:    zclFrame.TransactionSequenceNumber,
+			Cmd:              zclFrame.CommandIdentifier,
+			DstEndpointIndex: 0,
+		},
+	})
 }

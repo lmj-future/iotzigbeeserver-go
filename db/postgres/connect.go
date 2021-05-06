@@ -29,35 +29,33 @@ func GetInstance() *PgConnectPool {
 
 func reConnectDB(postgresURL string) {
 	timer := time.NewTimer(30 * time.Second)
-	select {
-	case <-timer.C:
-		db, err = gorm.Open("postgres", postgresURL)
-		if err != nil {
-			globallogger.Log.Errorln("[Postgres][Reconnect] couldn't open postgres:", err.Error())
-			reConnectDB(postgresURL)
-		} else {
-			globallogger.Log.Warnf("[Postgres][Reconnect] connect success: %+v", db)
-			keepAliveDB(postgresURL)
-		}
+	<-timer.C
+	timer.Stop()
+	db, err = gorm.Open("postgres", postgresURL)
+	if err != nil {
+		globallogger.Log.Errorln("[Postgres][Reconnect] couldn't open postgres:", err.Error())
+		reConnectDB(postgresURL)
+	} else {
+		globallogger.Log.Warnf("[Postgres][Reconnect] connect success: %+v", db)
+		keepAliveDB(postgresURL)
 	}
 }
 
 func keepAliveDB(postgresURL string) {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
-		select {
-		case <-ticker.C:
-			err = db.DB().Ping()
+		<-ticker.C
+		err = db.DB().Ping()
+		if err != nil {
+			db, err = gorm.Open("postgres", postgresURL)
 			if err != nil {
-				db, err = gorm.Open("postgres", postgresURL)
-				if err != nil {
-					globallogger.Log.Errorln("[Postgres][KeepAlive] couldn't open postgres:", err.Error())
-				} else {
-					globallogger.Log.Warnf("[Postgres][KeepAlive] connect success: %+v", db)
-				}
+				globallogger.Log.Errorln("[Postgres][KeepAlive] couldn't open postgres:", err.Error())
 			} else {
-				globallogger.Log.Warnf("[Postgres][KeepAlive] Ping success")
+				globallogger.Log.Warnf("[Postgres][KeepAlive] connect success: %+v", db)
 			}
+		} else {
+			globallogger.Log.Warnf("[Postgres][KeepAlive] Ping success")
 		}
 	}
 }
@@ -95,7 +93,8 @@ func (pg *PgConnectPool) InitDataPool(postgresConnParas map[string]interface{}) 
 		go reConnectDB(postgresURL)
 		return false
 	}
-	globallogger.Log.Infof("[Postgres] connect success: %+v", db)
+	db.DB().SetMaxOpenConns(5)
+	globallogger.Log.Infof("[Postgres] connect success: %+v", db.DB())
 	//关闭数据库，db会被多个goroutine共享，可以不调用
 	// defer db.Close()
 	go keepAliveDB(postgresURL)

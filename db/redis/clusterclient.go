@@ -8,23 +8,22 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 )
 
-//RedisClusterClient RedisClusterClient
-var RedisClusterClient *ClusterClient
-
 //ClusterClient ClusterClient
 type ClusterClient struct {
 	ClusterClient *redis.ClusterClient
 }
 
 //NewClusterClient NewClusterClient
-func NewClusterClient(host string, port string, password string) (*ClusterClient, error) {
-	var r *ClusterClient
-	connectionString := fmt.Sprintf("%s:%s", host, port)
+func NewClusterClient(servers []string, password string) (*ClusterClient, error) {
+	var r *ClusterClient = new(ClusterClient)
 	r.ClusterClient = redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs:       []string{connectionString},
+		Addrs:       servers,
 		DialTimeout: 5 * time.Second,
 		Password:    password,
 	})
+	if r.ClusterClient == nil {
+		return nil, fmt.Errorf("create cluster client nil")
+	}
 	if r.ClusterClient.ClientGetName().Name() == "" {
 		return nil, fmt.Errorf("create cluster client failed")
 	}

@@ -608,10 +608,3 @@ func readAttribute(c *composer.Composer) (dataType ZclDataType, value interface{
 	}
 	return
 }
-
-func flag(boolean bool) uint8 {
-	if boolean {
-		return 1
-	}
-	return 0
-}

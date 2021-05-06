@@ -335,339 +335,119 @@ const (
 	IotwarePropertyUnitOfTemperature   = "unitOfTemperature"
 )
 
-func getPropertyMeaning(srcString string) string {
-	if strings.Contains(srcString, HeimanSmartPlugPropertyOnOff) {
-		srcString = strings.Replace(srcString, HeimanSmartPlugPropertyOnOff, HeimanSmartPlugPropertyOnOff+"(HeimanSmartPlugPropertyOnOff)", 1)
-	}
-	if strings.Contains(srcString, HeimanSmartPlugPropertyPower) {
-		srcString = strings.Replace(srcString, HeimanSmartPlugPropertyPower, HeimanSmartPlugPropertyPower+"(HeimanSmartPlugPropertyPower)", 1)
-	}
-	if strings.Contains(srcString, HeimanSmartPlugPropertyElectric) {
-		srcString = strings.Replace(srcString, HeimanSmartPlugPropertyElectric, HeimanSmartPlugPropertyElectric+"(HeimanSmartPlugPropertyElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanESocketPropertyOnOff) {
-		srcString = strings.Replace(srcString, HeimanESocketPropertyOnOff, HeimanESocketPropertyOnOff+"(HeimanESocketPropertyOnOff)", 1)
-	}
-	if strings.Contains(srcString, HeimanESocketPropertyPower) {
-		srcString = strings.Replace(srcString, HeimanESocketPropertyPower, HeimanESocketPropertyPower+"(HeimanESocketPropertyPower)", 1)
-	}
-	if strings.Contains(srcString, HeimanESocketPropertyElectric) {
-		srcString = strings.Replace(srcString, HeimanESocketPropertyElectric, HeimanESocketPropertyElectric+"(HeimanESocketPropertyElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanSmokeSensorPropertyAlarm) {
-		srcString = strings.Replace(srcString, HeimanSmokeSensorPropertyAlarm, HeimanSmokeSensorPropertyAlarm+"(HeimanSmokeSensorPropertyAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanSmokeSensorPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanSmokeSensorPropertyLeftElectric, HeimanSmokeSensorPropertyLeftElectric+"(HeimanSmokeSensorPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanWaterSensorPropertyAlarm) {
-		srcString = strings.Replace(srcString, HeimanWaterSensorPropertyAlarm, HeimanWaterSensorPropertyAlarm+"(HeimanWaterSensorPropertyAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanWaterSensorPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanWaterSensorPropertyLeftElectric, HeimanWaterSensorPropertyLeftElectric+"(HeimanWaterSensorPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanWaterSensorPropertyTamper) {
-		srcString = strings.Replace(srcString, HeimanWaterSensorPropertyTamper, HeimanWaterSensorPropertyTamper+"(HeimanWaterSensorPropertyTamper)", 1)
-	}
-	if strings.Contains(srcString, HeimanPIRSensorPropertyAlarm) {
-		srcString = strings.Replace(srcString, HeimanPIRSensorPropertyAlarm, HeimanPIRSensorPropertyAlarm+"(HeimanPIRSensorPropertyAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanPIRSensorPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanPIRSensorPropertyLeftElectric, HeimanPIRSensorPropertyLeftElectric+"(HeimanPIRSensorPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanPIRSensorPropertyTamper) {
-		srcString = strings.Replace(srcString, HeimanPIRSensorPropertyTamper, HeimanPIRSensorPropertyTamper+"(HeimanPIRSensorPropertyTamper)", 1)
-	}
-	if strings.Contains(srcString, HeimanHTSensorPropertyTemperature) {
-		srcString = strings.Replace(srcString, HeimanHTSensorPropertyTemperature, HeimanHTSensorPropertyTemperature+"(HeimanHTSensorPropertyTemperature)", 1)
-	}
-	if strings.Contains(srcString, HeimanHTSensorPropertyHumidity) {
-		srcString = strings.Replace(srcString, HeimanHTSensorPropertyHumidity, HeimanHTSensorPropertyHumidity+"(HeimanHTSensorPropertyHumidity)", 1)
-	}
-	if strings.Contains(srcString, HeimanHTSensorPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanHTSensorPropertyLeftElectric, HeimanHTSensorPropertyLeftElectric+"(HeimanHTSensorPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanCOSensorPropertyAlarm) {
-		srcString = strings.Replace(srcString, HeimanCOSensorPropertyAlarm, HeimanCOSensorPropertyAlarm+"(HeimanCOSensorPropertyAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanCOSensorPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanCOSensorPropertyLeftElectric, HeimanCOSensorPropertyLeftElectric+"(HeimanCOSensorPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanWarningDevicePropertyAlarmTime) {
-		srcString = strings.Replace(srcString, HeimanWarningDevicePropertyAlarmTime, HeimanWarningDevicePropertyAlarmTime+"(HeimanWarningDevicePropertyAlarmTime)", 1)
-	}
-	if strings.Contains(srcString, HeimanWarningDevicePropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanWarningDevicePropertyLeftElectric, HeimanWarningDevicePropertyLeftElectric+"(HeimanWarningDevicePropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanWarningDevicePropertyAlarmStart) {
-		srcString = strings.Replace(srcString, HeimanWarningDevicePropertyAlarmStart, HeimanWarningDevicePropertyAlarmStart+"(HeimanWarningDevicePropertyAlarmStart)", 1)
-	}
-	if strings.Contains(srcString, HeimanGASSensorPropertyAlarm) {
-		srcString = strings.Replace(srcString, HeimanGASSensorPropertyAlarm, HeimanGASSensorPropertyAlarm+"(HeimanGASSensorPropertyAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyTemperature) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperature, HeimanHS2AQPropertyTemperature+"(HeimanHS2AQPropertyTemperature)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyHumidity) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidity, HeimanHS2AQPropertyHumidity+"(HeimanHS2AQPropertyHumidity)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyFormaldehyde) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyFormaldehyde, HeimanHS2AQPropertyFormaldehyde+"(HeimanHS2AQPropertyFormaldehyde)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyPM25) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM25, HeimanHS2AQPropertyPM25+"(HeimanHS2AQPropertyPM25)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyPM10) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM10, HeimanHS2AQPropertyPM10+"(HeimanHS2AQPropertyPM10)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyLeftElectric, HeimanHS2AQPropertyLeftElectric+"(HeimanHS2AQPropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyTemperatureAlarmThreshold) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperatureAlarmThreshold, HeimanHS2AQPropertyTemperatureAlarmThreshold+"(HeimanHS2AQPropertyTemperatureAlarmThreshold)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyHumidityAlarmThreshold) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidityAlarmThreshold, HeimanHS2AQPropertyHumidityAlarmThreshold+"(HeimanHS2AQPropertyHumidityAlarmThreshold)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyTemperatureAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperatureAlarm, HeimanHS2AQPropertyTemperatureAlarm+"(HeimanHS2AQPropertyTemperatureAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyHumidityAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidityAlarm, HeimanHS2AQPropertyHumidityAlarm+"(HeimanHS2AQPropertyHumidityAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyTVOC) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyTVOC, HeimanHS2AQPropertyTVOC+"(HeimanHS2AQPropertyTVOC)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyAQI) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyAQI, HeimanHS2AQPropertyAQI+"(HeimanHS2AQPropertyAQI)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyBatteryState) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyBatteryState, HeimanHS2AQPropertyBatteryState+"(HeimanHS2AQPropertyBatteryState)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyUnDisturb) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyUnDisturb, HeimanHS2AQPropertyUnDisturb+"(HeimanHS2AQPropertyUnDisturb)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyFormaldehydeAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyFormaldehydeAlarm, HeimanHS2AQPropertyFormaldehydeAlarm+"(HeimanHS2AQPropertyFormaldehydeAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyPM25Alarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM25Alarm, HeimanHS2AQPropertyPM25Alarm+"(HeimanHS2AQPropertyPM25Alarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyPM10Alarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM10Alarm, HeimanHS2AQPropertyPM10Alarm+"(HeimanHS2AQPropertyPM10Alarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyTVOCAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyTVOCAlarm, HeimanHS2AQPropertyTVOCAlarm+"(HeimanHS2AQPropertyTVOCAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyAQIAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyAQIAlarm, HeimanHS2AQPropertyAQIAlarm+"(HeimanHS2AQPropertyAQIAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2AQPropertyBatteryAlarm) {
-		srcString = strings.Replace(srcString, HeimanHS2AQPropertyBatteryAlarm, HeimanHS2AQPropertyBatteryAlarm+"(HeimanHS2AQPropertyBatteryAlarm)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW1LEFR30PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HeimanHS2SW1LEFR30PropertyOnOff1, HeimanHS2SW1LEFR30PropertyOnOff1+"(HeimanHS2SW1LEFR30PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW2LEFR30PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HeimanHS2SW2LEFR30PropertyOnOff1, HeimanHS2SW2LEFR30PropertyOnOff1+"(HeimanHS2SW2LEFR30PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW2LEFR30PropertyOnOff2) {
-		srcString = strings.Replace(srcString, HeimanHS2SW2LEFR30PropertyOnOff2, HeimanHS2SW2LEFR30PropertyOnOff2+"(HeimanHS2SW2LEFR30PropertyOnOff2)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW3LEFR30PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff1, HeimanHS2SW3LEFR30PropertyOnOff1+"(HeimanHS2SW3LEFR30PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW3LEFR30PropertyOnOff2) {
-		srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff2, HeimanHS2SW3LEFR30PropertyOnOff2+"(HeimanHS2SW3LEFR30PropertyOnOff2)", 1)
-	}
-	if strings.Contains(srcString, HeimanHS2SW3LEFR30PropertyOnOff3) {
-		srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff3, HeimanHS2SW3LEFR30PropertyOnOff3+"(HeimanHS2SW3LEFR30PropertyOnOff3)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertyAtHome) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyAtHome, HeimanSceneSwitchEM30PropertyAtHome+"(HeimanSceneSwitchEM30PropertyAtHome)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertyGoOut) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyGoOut, HeimanSceneSwitchEM30PropertyGoOut+"(HeimanSceneSwitchEM30PropertyGoOut)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertyCinema) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyCinema, HeimanSceneSwitchEM30PropertyCinema+"(HeimanSceneSwitchEM30PropertyCinema)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertyRepast) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyRepast, HeimanSceneSwitchEM30PropertyRepast+"(HeimanSceneSwitchEM30PropertyRepast)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertySleep) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertySleep, HeimanSceneSwitchEM30PropertySleep+"(HeimanSceneSwitchEM30PropertySleep)", 1)
-	}
-	if strings.Contains(srcString, HeimanSceneSwitchEM30PropertyLeftElectric) {
-		srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyLeftElectric, HeimanSceneSwitchEM30PropertyLeftElectric+"(HeimanSceneSwitchEM30PropertyLeftElectric)", 1)
-	}
-	if strings.Contains(srcString, HeimanIRControlEMPropertySendKeyCommand) {
-		srcString = strings.Replace(srcString, HeimanIRControlEMPropertySendKeyCommand, HeimanIRControlEMPropertySendKeyCommand+"(HeimanIRControlEMPropertySendKeyCommand)", 1)
-	}
-	if strings.Contains(srcString, HeimanIRControlEMPropertyStudyKey) {
-		srcString = strings.Replace(srcString, HeimanIRControlEMPropertyStudyKey, HeimanIRControlEMPropertyStudyKey+"(HeimanIRControlEMPropertyStudyKey)", 1)
-	}
-	if strings.Contains(srcString, HeimanIRControlEMPropertyDeleteKey) {
-		srcString = strings.Replace(srcString, HeimanIRControlEMPropertyDeleteKey, HeimanIRControlEMPropertyDeleteKey+"(HeimanIRControlEMPropertyDeleteKey)", 1)
-	}
-	if strings.Contains(srcString, HeimanIRControlEMPropertyCreateID) {
-		srcString = strings.Replace(srcString, HeimanIRControlEMPropertyCreateID, HeimanIRControlEMPropertyCreateID+"(HeimanIRControlEMPropertyCreateID)", 1)
-	}
-	if strings.Contains(srcString, HeimanIRControlEMPropertyGetIDAndKeyCodeList) {
-		srcString = strings.Replace(srcString, HeimanIRControlEMPropertyGetIDAndKeyCodeList, HeimanIRControlEMPropertyGetIDAndKeyCodeList+"(HeimanIRControlEMPropertyGetIDAndKeyCodeList)", 1)
-	}
-	if strings.Contains(srcString, HonyarSingleSwitch00500c32PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HonyarSingleSwitch00500c32PropertyOnOff1, HonyarSingleSwitch00500c32PropertyOnOff1+"(HonyarSingleSwitch00500c32PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HonyarDoubleSwitch00500c33PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HonyarDoubleSwitch00500c33PropertyOnOff1, HonyarDoubleSwitch00500c33PropertyOnOff1+"(HonyarDoubleSwitch00500c33PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HonyarDoubleSwitch00500c33PropertyOnOff2) {
-		srcString = strings.Replace(srcString, HonyarDoubleSwitch00500c33PropertyOnOff2, HonyarDoubleSwitch00500c33PropertyOnOff2+"(HonyarDoubleSwitch00500c33PropertyOnOff2)", 1)
-	}
-	if strings.Contains(srcString, HonyarTripleSwitch00500c35PropertyOnOff1) {
-		srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff1, HonyarTripleSwitch00500c35PropertyOnOff1+"(HonyarTripleSwitch00500c35PropertyOnOff1)", 1)
-	}
-	if strings.Contains(srcString, HonyarTripleSwitch00500c35PropertyOnOff2) {
-		srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff2, HonyarTripleSwitch00500c35PropertyOnOff2+"(HonyarTripleSwitch00500c35PropertyOnOff2)", 1)
-	}
-	if strings.Contains(srcString, HonyarTripleSwitch00500c35PropertyOnOff3) {
-		srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff3, HonyarTripleSwitch00500c35PropertyOnOff3+"(HonyarTripleSwitch00500c35PropertyOnOff3)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyOnOff) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyOnOff, HonyarSocket000a0c3cPropertyOnOff+"(HonyarSocket000a0c3cPropertyOnOff)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyCurretSummationDelivered) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyCurretSummationDelivered, HonyarSocket000a0c3cPropertyCurretSummationDelivered+"(HonyarSocket000a0c3cPropertyCurretSummationDelivered)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyRMSVoltage) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyRMSVoltage, HonyarSocket000a0c3cPropertyRMSVoltage+"(HonyarSocket000a0c3cPropertyRMSVoltage)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyRMSCurrent) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyRMSCurrent, HonyarSocket000a0c3cPropertyRMSCurrent+"(HonyarSocket000a0c3cPropertyRMSCurrent)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyActivePower) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyActivePower, HonyarSocket000a0c3cPropertyActivePower+"(HonyarSocket000a0c3cPropertyActivePower)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyChildLock) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyChildLock, HonyarSocket000a0c3cPropertyChildLock+"(HonyarSocket000a0c3cPropertyChildLock)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocket000a0c3cPropertyUSB) {
-		srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyUSB, HonyarSocket000a0c3cPropertyUSB+"(HonyarSocket000a0c3cPropertyUSB)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyOnOff) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyOnOff, HonyarSocketHY0105PropertyOnOff+"(HonyarSocketHY0105PropertyOnOff)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyCurretSummationDelivered) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyCurretSummationDelivered, HonyarSocketHY0105PropertyCurretSummationDelivered+"(HonyarSocketHY0105PropertyCurretSummationDelivered)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyRMSVoltage) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyRMSVoltage, HonyarSocketHY0105PropertyRMSVoltage+"(HonyarSocketHY0105PropertyRMSVoltage)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyRMSCurrent) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyRMSCurrent, HonyarSocketHY0105PropertyRMSCurrent+"(HonyarSocketHY0105PropertyRMSCurrent)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyActivePower) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyActivePower, HonyarSocketHY0105PropertyActivePower+"(HonyarSocketHY0105PropertyActivePower)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyChildLock) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyChildLock, HonyarSocketHY0105PropertyChildLock+"(HonyarSocketHY0105PropertyChildLock)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyUSB) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyUSB, HonyarSocketHY0105PropertyUSB+"(HonyarSocketHY0105PropertyUSB)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyBackGroundLight) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyBackGroundLight, HonyarSocketHY0105PropertyBackGroundLight+"(HonyarSocketHY0105PropertyBackGroundLight)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyPowerOffMemory) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyPowerOffMemory, HonyarSocketHY0105PropertyPowerOffMemory+"(HonyarSocketHY0105PropertyPowerOffMemory)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0105PropertyHistoryElectricClear) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyHistoryElectricClear, HonyarSocketHY0105PropertyHistoryElectricClear+"(HonyarSocketHY0105PropertyHistoryElectricClear)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyOnOff) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyOnOff, HonyarSocketHY0106PropertyOnOff+"(HonyarSocketHY0106PropertyOnOff)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyCurretSummationDelivered) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyCurretSummationDelivered, HonyarSocketHY0106PropertyCurretSummationDelivered+"(HonyarSocketHY0106PropertyCurretSummationDelivered)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyRMSVoltage) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyRMSVoltage, HonyarSocketHY0106PropertyRMSVoltage+"(HonyarSocketHY0106PropertyRMSVoltage)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyRMSCurrent) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyRMSCurrent, HonyarSocketHY0106PropertyRMSCurrent+"(HonyarSocketHY0106PropertyRMSCurrent)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyActivePower) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyActivePower, HonyarSocketHY0106PropertyActivePower+"(HonyarSocketHY0106PropertyActivePower)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyChildLock) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyChildLock, HonyarSocketHY0106PropertyChildLock+"(HonyarSocketHY0106PropertyChildLock)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyBackGroundLight) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyBackGroundLight, HonyarSocketHY0106PropertyBackGroundLight+"(HonyarSocketHY0106PropertyBackGroundLight)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyPowerOffMemory) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyPowerOffMemory, HonyarSocketHY0106PropertyPowerOffMemory+"(HonyarSocketHY0106PropertyPowerOffMemory)", 1)
-	}
-	if strings.Contains(srcString, HonyarSocketHY0106PropertyHistoryElectricClear) {
-		srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyHistoryElectricClear, HonyarSocketHY0106PropertyHistoryElectricClear+"(HonyarSocketHY0106PropertyHistoryElectricClear)", 1)
-	}
-	if strings.Contains(srcString, Honyar1SceneSwitch005f0cf1Property) {
-		srcString = strings.Replace(srcString, Honyar1SceneSwitch005f0cf1Property, Honyar1SceneSwitch005f0cf1Property+"(Honyar1SceneSwitch005f0cf1Property)", 1)
-	}
-	if strings.Contains(srcString, Honyar2SceneSwitch005f0cf3PropertyLeft) {
-		srcString = strings.Replace(srcString, Honyar2SceneSwitch005f0cf3PropertyLeft, Honyar2SceneSwitch005f0cf3PropertyLeft+"(Honyar2SceneSwitch005f0cf3PropertyLeft)", 1)
-	}
-	if strings.Contains(srcString, Honyar2SceneSwitch005f0cf3PropertyRight) {
-		srcString = strings.Replace(srcString, Honyar2SceneSwitch005f0cf3PropertyRight, Honyar2SceneSwitch005f0cf3PropertyRight+"(Honyar2SceneSwitch005f0cf3PropertyRight)", 1)
-	}
-	if strings.Contains(srcString, Honyar3SceneSwitch005f0cf2PropertyLeft) {
-		srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyLeft, Honyar3SceneSwitch005f0cf2PropertyLeft+"(Honyar3SceneSwitch005f0cf2PropertyLeft)", 1)
-	}
-	if strings.Contains(srcString, Honyar3SceneSwitch005f0cf2PropertyMiddle) {
-		srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyMiddle, Honyar3SceneSwitch005f0cf2PropertyMiddle+"(Honyar3SceneSwitch005f0cf2PropertyMiddle)", 1)
-	}
-	if strings.Contains(srcString, Honyar3SceneSwitch005f0cf2PropertyRight) {
-		srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyRight, Honyar3SceneSwitch005f0cf2PropertyRight+"(Honyar3SceneSwitch005f0cf2PropertyRight)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUp) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUp, Honyar6SceneSwitch005f0c3bPropertyLeftUp+"(Honyar6SceneSwitch005f0c3bPropertyLeftUp)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddle) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddle, Honyar6SceneSwitch005f0c3bPropertyLeftMiddle+"(Honyar6SceneSwitch005f0c3bPropertyLeftMiddle)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDown) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDown, Honyar6SceneSwitch005f0c3bPropertyLeftDown+"(Honyar6SceneSwitch005f0c3bPropertyLeftDown)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUp) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUp, Honyar6SceneSwitch005f0c3bPropertyRightUp+"(Honyar6SceneSwitch005f0c3bPropertyRightUp)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddle) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddle, Honyar6SceneSwitch005f0c3bPropertyRightMiddle+"(Honyar6SceneSwitch005f0c3bPropertyRightMiddle)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDown) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDown, Honyar6SceneSwitch005f0c3bPropertyRightDown+"(Honyar6SceneSwitch005f0c3bPropertyRightDown)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene)", 1)
-	}
-	if strings.Contains(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene) {
-		srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene)", 1)
-	}
-	return srcString
-}
+// func getPropertyMeaning(srcString string) string {
+// 	srcString = strings.Replace(srcString, HeimanSmartPlugPropertyOnOff, HeimanSmartPlugPropertyOnOff+"(HeimanSmartPlugPropertyOnOff)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSmartPlugPropertyPower, HeimanSmartPlugPropertyPower+"(HeimanSmartPlugPropertyPower)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSmartPlugPropertyElectric, HeimanSmartPlugPropertyElectric+"(HeimanSmartPlugPropertyElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanESocketPropertyOnOff, HeimanESocketPropertyOnOff+"(HeimanESocketPropertyOnOff)", 1)
+// 	srcString = strings.Replace(srcString, HeimanESocketPropertyPower, HeimanESocketPropertyPower+"(HeimanESocketPropertyPower)", 1)
+// 	srcString = strings.Replace(srcString, HeimanESocketPropertyElectric, HeimanESocketPropertyElectric+"(HeimanESocketPropertyElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSmokeSensorPropertyAlarm, HeimanSmokeSensorPropertyAlarm+"(HeimanSmokeSensorPropertyAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSmokeSensorPropertyLeftElectric, HeimanSmokeSensorPropertyLeftElectric+"(HeimanSmokeSensorPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWaterSensorPropertyAlarm, HeimanWaterSensorPropertyAlarm+"(HeimanWaterSensorPropertyAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWaterSensorPropertyLeftElectric, HeimanWaterSensorPropertyLeftElectric+"(HeimanWaterSensorPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWaterSensorPropertyTamper, HeimanWaterSensorPropertyTamper+"(HeimanWaterSensorPropertyTamper)", 1)
+// 	srcString = strings.Replace(srcString, HeimanPIRSensorPropertyAlarm, HeimanPIRSensorPropertyAlarm+"(HeimanPIRSensorPropertyAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanPIRSensorPropertyLeftElectric, HeimanPIRSensorPropertyLeftElectric+"(HeimanPIRSensorPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanPIRSensorPropertyTamper, HeimanPIRSensorPropertyTamper+"(HeimanPIRSensorPropertyTamper)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHTSensorPropertyTemperature, HeimanHTSensorPropertyTemperature+"(HeimanHTSensorPropertyTemperature)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHTSensorPropertyHumidity, HeimanHTSensorPropertyHumidity+"(HeimanHTSensorPropertyHumidity)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHTSensorPropertyLeftElectric, HeimanHTSensorPropertyLeftElectric+"(HeimanHTSensorPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanCOSensorPropertyAlarm, HeimanCOSensorPropertyAlarm+"(HeimanCOSensorPropertyAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanCOSensorPropertyLeftElectric, HeimanCOSensorPropertyLeftElectric+"(HeimanCOSensorPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWarningDevicePropertyAlarmTime, HeimanWarningDevicePropertyAlarmTime+"(HeimanWarningDevicePropertyAlarmTime)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWarningDevicePropertyLeftElectric, HeimanWarningDevicePropertyLeftElectric+"(HeimanWarningDevicePropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanWarningDevicePropertyAlarmStart, HeimanWarningDevicePropertyAlarmStart+"(HeimanWarningDevicePropertyAlarmStart)", 1)
+// 	srcString = strings.Replace(srcString, HeimanGASSensorPropertyAlarm, HeimanGASSensorPropertyAlarm+"(HeimanGASSensorPropertyAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperature, HeimanHS2AQPropertyTemperature+"(HeimanHS2AQPropertyTemperature)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidity, HeimanHS2AQPropertyHumidity+"(HeimanHS2AQPropertyHumidity)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyFormaldehyde, HeimanHS2AQPropertyFormaldehyde+"(HeimanHS2AQPropertyFormaldehyde)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM25, HeimanHS2AQPropertyPM25+"(HeimanHS2AQPropertyPM25)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM10, HeimanHS2AQPropertyPM10+"(HeimanHS2AQPropertyPM10)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyLeftElectric, HeimanHS2AQPropertyLeftElectric+"(HeimanHS2AQPropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperatureAlarmThreshold, HeimanHS2AQPropertyTemperatureAlarmThreshold+"(HeimanHS2AQPropertyTemperatureAlarmThreshold)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidityAlarmThreshold, HeimanHS2AQPropertyHumidityAlarmThreshold+"(HeimanHS2AQPropertyHumidityAlarmThreshold)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyTemperatureAlarm, HeimanHS2AQPropertyTemperatureAlarm+"(HeimanHS2AQPropertyTemperatureAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyHumidityAlarm, HeimanHS2AQPropertyHumidityAlarm+"(HeimanHS2AQPropertyHumidityAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyTVOC, HeimanHS2AQPropertyTVOC+"(HeimanHS2AQPropertyTVOC)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyAQI, HeimanHS2AQPropertyAQI+"(HeimanHS2AQPropertyAQI)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyBatteryState, HeimanHS2AQPropertyBatteryState+"(HeimanHS2AQPropertyBatteryState)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyUnDisturb, HeimanHS2AQPropertyUnDisturb+"(HeimanHS2AQPropertyUnDisturb)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyFormaldehydeAlarm, HeimanHS2AQPropertyFormaldehydeAlarm+"(HeimanHS2AQPropertyFormaldehydeAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM25Alarm, HeimanHS2AQPropertyPM25Alarm+"(HeimanHS2AQPropertyPM25Alarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyPM10Alarm, HeimanHS2AQPropertyPM10Alarm+"(HeimanHS2AQPropertyPM10Alarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyTVOCAlarm, HeimanHS2AQPropertyTVOCAlarm+"(HeimanHS2AQPropertyTVOCAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyAQIAlarm, HeimanHS2AQPropertyAQIAlarm+"(HeimanHS2AQPropertyAQIAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2AQPropertyBatteryAlarm, HeimanHS2AQPropertyBatteryAlarm+"(HeimanHS2AQPropertyBatteryAlarm)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW1LEFR30PropertyOnOff1, HeimanHS2SW1LEFR30PropertyOnOff1+"(HeimanHS2SW1LEFR30PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW2LEFR30PropertyOnOff1, HeimanHS2SW2LEFR30PropertyOnOff1+"(HeimanHS2SW2LEFR30PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW2LEFR30PropertyOnOff2, HeimanHS2SW2LEFR30PropertyOnOff2+"(HeimanHS2SW2LEFR30PropertyOnOff2)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff1, HeimanHS2SW3LEFR30PropertyOnOff1+"(HeimanHS2SW3LEFR30PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff2, HeimanHS2SW3LEFR30PropertyOnOff2+"(HeimanHS2SW3LEFR30PropertyOnOff2)", 1)
+// 	srcString = strings.Replace(srcString, HeimanHS2SW3LEFR30PropertyOnOff3, HeimanHS2SW3LEFR30PropertyOnOff3+"(HeimanHS2SW3LEFR30PropertyOnOff3)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyAtHome, HeimanSceneSwitchEM30PropertyAtHome+"(HeimanSceneSwitchEM30PropertyAtHome)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyGoOut, HeimanSceneSwitchEM30PropertyGoOut+"(HeimanSceneSwitchEM30PropertyGoOut)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyCinema, HeimanSceneSwitchEM30PropertyCinema+"(HeimanSceneSwitchEM30PropertyCinema)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyRepast, HeimanSceneSwitchEM30PropertyRepast+"(HeimanSceneSwitchEM30PropertyRepast)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertySleep, HeimanSceneSwitchEM30PropertySleep+"(HeimanSceneSwitchEM30PropertySleep)", 1)
+// 	srcString = strings.Replace(srcString, HeimanSceneSwitchEM30PropertyLeftElectric, HeimanSceneSwitchEM30PropertyLeftElectric+"(HeimanSceneSwitchEM30PropertyLeftElectric)", 1)
+// 	srcString = strings.Replace(srcString, HeimanIRControlEMPropertySendKeyCommand, HeimanIRControlEMPropertySendKeyCommand+"(HeimanIRControlEMPropertySendKeyCommand)", 1)
+// 	srcString = strings.Replace(srcString, HeimanIRControlEMPropertyStudyKey, HeimanIRControlEMPropertyStudyKey+"(HeimanIRControlEMPropertyStudyKey)", 1)
+// 	srcString = strings.Replace(srcString, HeimanIRControlEMPropertyDeleteKey, HeimanIRControlEMPropertyDeleteKey+"(HeimanIRControlEMPropertyDeleteKey)", 1)
+// 	srcString = strings.Replace(srcString, HeimanIRControlEMPropertyCreateID, HeimanIRControlEMPropertyCreateID+"(HeimanIRControlEMPropertyCreateID)", 1)
+// 	srcString = strings.Replace(srcString, HeimanIRControlEMPropertyGetIDAndKeyCodeList, HeimanIRControlEMPropertyGetIDAndKeyCodeList+"(HeimanIRControlEMPropertyGetIDAndKeyCodeList)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSingleSwitch00500c32PropertyOnOff1, HonyarSingleSwitch00500c32PropertyOnOff1+"(HonyarSingleSwitch00500c32PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HonyarDoubleSwitch00500c33PropertyOnOff1, HonyarDoubleSwitch00500c33PropertyOnOff1+"(HonyarDoubleSwitch00500c33PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HonyarDoubleSwitch00500c33PropertyOnOff2, HonyarDoubleSwitch00500c33PropertyOnOff2+"(HonyarDoubleSwitch00500c33PropertyOnOff2)", 1)
+// 	srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff1, HonyarTripleSwitch00500c35PropertyOnOff1+"(HonyarTripleSwitch00500c35PropertyOnOff1)", 1)
+// 	srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff2, HonyarTripleSwitch00500c35PropertyOnOff2+"(HonyarTripleSwitch00500c35PropertyOnOff2)", 1)
+// 	srcString = strings.Replace(srcString, HonyarTripleSwitch00500c35PropertyOnOff3, HonyarTripleSwitch00500c35PropertyOnOff3+"(HonyarTripleSwitch00500c35PropertyOnOff3)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyOnOff, HonyarSocket000a0c3cPropertyOnOff+"(HonyarSocket000a0c3cPropertyOnOff)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyCurretSummationDelivered, HonyarSocket000a0c3cPropertyCurretSummationDelivered+"(HonyarSocket000a0c3cPropertyCurretSummationDelivered)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyRMSVoltage, HonyarSocket000a0c3cPropertyRMSVoltage+"(HonyarSocket000a0c3cPropertyRMSVoltage)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyRMSCurrent, HonyarSocket000a0c3cPropertyRMSCurrent+"(HonyarSocket000a0c3cPropertyRMSCurrent)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyActivePower, HonyarSocket000a0c3cPropertyActivePower+"(HonyarSocket000a0c3cPropertyActivePower)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyChildLock, HonyarSocket000a0c3cPropertyChildLock+"(HonyarSocket000a0c3cPropertyChildLock)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocket000a0c3cPropertyUSB, HonyarSocket000a0c3cPropertyUSB+"(HonyarSocket000a0c3cPropertyUSB)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyOnOff, HonyarSocketHY0105PropertyOnOff+"(HonyarSocketHY0105PropertyOnOff)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyCurretSummationDelivered, HonyarSocketHY0105PropertyCurretSummationDelivered+"(HonyarSocketHY0105PropertyCurretSummationDelivered)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyRMSVoltage, HonyarSocketHY0105PropertyRMSVoltage+"(HonyarSocketHY0105PropertyRMSVoltage)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyRMSCurrent, HonyarSocketHY0105PropertyRMSCurrent+"(HonyarSocketHY0105PropertyRMSCurrent)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyActivePower, HonyarSocketHY0105PropertyActivePower+"(HonyarSocketHY0105PropertyActivePower)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyChildLock, HonyarSocketHY0105PropertyChildLock+"(HonyarSocketHY0105PropertyChildLock)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyUSB, HonyarSocketHY0105PropertyUSB+"(HonyarSocketHY0105PropertyUSB)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyBackGroundLight, HonyarSocketHY0105PropertyBackGroundLight+"(HonyarSocketHY0105PropertyBackGroundLight)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyPowerOffMemory, HonyarSocketHY0105PropertyPowerOffMemory+"(HonyarSocketHY0105PropertyPowerOffMemory)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0105PropertyHistoryElectricClear, HonyarSocketHY0105PropertyHistoryElectricClear+"(HonyarSocketHY0105PropertyHistoryElectricClear)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyOnOff, HonyarSocketHY0106PropertyOnOff+"(HonyarSocketHY0106PropertyOnOff)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyCurretSummationDelivered, HonyarSocketHY0106PropertyCurretSummationDelivered+"(HonyarSocketHY0106PropertyCurretSummationDelivered)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyRMSVoltage, HonyarSocketHY0106PropertyRMSVoltage+"(HonyarSocketHY0106PropertyRMSVoltage)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyRMSCurrent, HonyarSocketHY0106PropertyRMSCurrent+"(HonyarSocketHY0106PropertyRMSCurrent)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyActivePower, HonyarSocketHY0106PropertyActivePower+"(HonyarSocketHY0106PropertyActivePower)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyChildLock, HonyarSocketHY0106PropertyChildLock+"(HonyarSocketHY0106PropertyChildLock)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyBackGroundLight, HonyarSocketHY0106PropertyBackGroundLight+"(HonyarSocketHY0106PropertyBackGroundLight)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyPowerOffMemory, HonyarSocketHY0106PropertyPowerOffMemory+"(HonyarSocketHY0106PropertyPowerOffMemory)", 1)
+// 	srcString = strings.Replace(srcString, HonyarSocketHY0106PropertyHistoryElectricClear, HonyarSocketHY0106PropertyHistoryElectricClear+"(HonyarSocketHY0106PropertyHistoryElectricClear)", 1)
+// 	srcString = strings.Replace(srcString, Honyar1SceneSwitch005f0cf1Property, Honyar1SceneSwitch005f0cf1Property+"(Honyar1SceneSwitch005f0cf1Property)", 1)
+// 	srcString = strings.Replace(srcString, Honyar2SceneSwitch005f0cf3PropertyLeft, Honyar2SceneSwitch005f0cf3PropertyLeft+"(Honyar2SceneSwitch005f0cf3PropertyLeft)", 1)
+// 	srcString = strings.Replace(srcString, Honyar2SceneSwitch005f0cf3PropertyRight, Honyar2SceneSwitch005f0cf3PropertyRight+"(Honyar2SceneSwitch005f0cf3PropertyRight)", 1)
+// 	srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyLeft, Honyar3SceneSwitch005f0cf2PropertyLeft+"(Honyar3SceneSwitch005f0cf2PropertyLeft)", 1)
+// 	srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyMiddle, Honyar3SceneSwitch005f0cf2PropertyMiddle+"(Honyar3SceneSwitch005f0cf2PropertyMiddle)", 1)
+// 	srcString = strings.Replace(srcString, Honyar3SceneSwitch005f0cf2PropertyRight, Honyar3SceneSwitch005f0cf2PropertyRight+"(Honyar3SceneSwitch005f0cf2PropertyRight)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUp, Honyar6SceneSwitch005f0c3bPropertyLeftUp+"(Honyar6SceneSwitch005f0c3bPropertyLeftUp)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddle, Honyar6SceneSwitch005f0c3bPropertyLeftMiddle+"(Honyar6SceneSwitch005f0c3bPropertyLeftMiddle)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDown, Honyar6SceneSwitch005f0c3bPropertyLeftDown+"(Honyar6SceneSwitch005f0c3bPropertyLeftDown)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUp, Honyar6SceneSwitch005f0c3bPropertyRightUp+"(Honyar6SceneSwitch005f0c3bPropertyRightUp)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddle, Honyar6SceneSwitch005f0c3bPropertyRightMiddle+"(Honyar6SceneSwitch005f0c3bPropertyRightMiddle)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDown, Honyar6SceneSwitch005f0c3bPropertyRightDown+"(Honyar6SceneSwitch005f0c3bPropertyRightDown)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene+"(Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene)", 1)
+// 	srcString = strings.Replace(srcString, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene+"(Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene)", 1)
+// 	return srcString
+// }
 
 // 定义mqtt消息结构体
 type mqttMsgSt struct {
@@ -679,29 +459,29 @@ type mqttMsgSt struct {
 
 // Publish publish mqtt msg
 func Publish(topic string, method string, params interface{}, msgID interface{}) {
-	mqttMsg := mqttMsgSt{
+	jsonMsg, err := json.Marshal(mqttMsgSt{
 		ID:      msgID,
 		Version: "1.0",
 		Params:  params,
 		Method:  method,
-	}
-	jsonMsg, err := json.Marshal(mqttMsg)
+	})
 	if err != nil {
 		globallogger.Log.Errorf("[Publish]: JSON marshaling failed: %s", err)
 	}
 	mqtt.Publish(topic, string(jsonMsg))
-	globallogger.Log.Warnf("[Publish]: mqtt msg publish: topic: %s, mqttMsg %v", topic, getPropertyMeaning(string(jsonMsg)))
+	// globallogger.Log.Warnf("[Publish]: mqtt msg publish: topic: %s, mqttMsg %v", topic, getPropertyMeaning(string(jsonMsg)))
+	globallogger.Log.Warnf("[Publish]: mqtt msg publish: topic: %s, mqttMsg %s", topic, string(jsonMsg))
 }
 
 // PublishRPCRspIotware publish rpc rsp
 func PublishRPCRspIotware(devEUI string, result string, msgID interface{}) {
-	var mqttMsg publicstruct.RPCRspIotware
-	mqttMsg.Device = devEUI
-	mqttMsg.ID = msgID
-	mqttMsg.Data = publicstruct.DataRPCRsp{
-		Result: result,
-	}
-	jsonMsg, err := json.Marshal(mqttMsg)
+	jsonMsg, err := json.Marshal(publicstruct.RPCRspIotware{
+		Device: devEUI,
+		ID:     msgID,
+		Data: publicstruct.DataRPCRsp{
+			Result: result,
+		},
+	})
 	if err != nil {
 		globallogger.Log.Errorf("[Publish]: JSON marshaling failed: %s", err)
 	}
@@ -712,8 +492,12 @@ func PublishRPCRspIotware(devEUI string, result string, msgID interface{}) {
 func PublishTelemetryUpIotware(terminalInfo config.TerminalInfo, values interface{}) {
 	if terminalInfo.IsExist {
 		params := make(map[string]interface{}, 1)
+		var typeBuilder strings.Builder
+		typeBuilder.WriteString(terminalInfo.ManufacturerName)
+		typeBuilder.WriteString("-")
+		typeBuilder.WriteString(terminalInfo.TmnType)
 		params[terminalInfo.DevEUI] = publicstruct.DeviceData{
-			Type: terminalInfo.ManufacturerName + "-" + terminalInfo.TmnType,
+			Type: typeBuilder.String(),
 			Data: []publicstruct.DataItem{
 				{
 					TimeStamp: time.Now().UnixNano() / 1e6,
@@ -721,7 +505,7 @@ func PublishTelemetryUpIotware(terminalInfo config.TerminalInfo, values interfac
 				},
 			},
 		}
-		mqttMsg := publicstruct.TelemetryIotware{
+		jsonMsg, err := json.Marshal(publicstruct.TelemetryIotware{
 			Gateway: publicstruct.GatewayIotware{
 				FirstAddr:  terminalInfo.FirstAddr,
 				SecondAddr: terminalInfo.SecondAddr,
@@ -729,12 +513,12 @@ func PublishTelemetryUpIotware(terminalInfo config.TerminalInfo, values interfac
 				PortID:     terminalInfo.ModuleID,
 			},
 			DeviceData: params,
-		}
-		jsonMsg, err := json.Marshal(mqttMsg)
+		})
 		if err != nil {
 			globallogger.Log.Errorf("[Publish]: JSON marshaling failed: %s", err)
 		}
 		PublishIotware(TopicV1GatewayTelemetry, jsonMsg)
+		params = nil
 	}
 }
 
@@ -749,7 +533,7 @@ func ProcSubMsg(topic string, jsonMsg []byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("ProcSubMsg err : ", err)
+			globallogger.Log.Errorln("ProcSubMsg err :", err)
 		}
 	}()
 	if constant.Constant.Iotware {
@@ -758,7 +542,7 @@ func ProcSubMsg(topic string, jsonMsg []byte) {
 			var mqttMsg publicstruct.RPCIotware
 			err := json.Unmarshal(jsonMsg, &mqttMsg)
 			if err != nil {
-				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed: ", err)
+				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed:", err)
 				return
 			}
 			globallogger.Log.Warnf("[Subscribe]: mqtt msg subscribe: topic: %s, mqttMsg %+v", topic, mqttMsg)
@@ -767,7 +551,7 @@ func ProcSubMsg(topic string, jsonMsg []byte) {
 			var networkInAckMsg publicstruct.NetworkInAckIotware
 			err := json.Unmarshal(jsonMsg, &networkInAckMsg)
 			if err != nil {
-				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed: ", err)
+				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed:", err)
 				return
 			}
 			globallogger.Log.Warnf("[Subscribe]: mqtt msg subscribe: topic: %s, networkInAckMsg %+v", topic, networkInAckMsg)
@@ -776,7 +560,7 @@ func ProcSubMsg(topic string, jsonMsg []byte) {
 			var deviceDeleteMsg publicstruct.EventDeviceDeleteIotware
 			err := json.Unmarshal(jsonMsg, &deviceDeleteMsg)
 			if err != nil {
-				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed: ", err)
+				globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed:", err)
 				return
 			}
 			globallogger.Log.Warnf("[Subscribe]: mqtt msg subscribe: topic: %s, deviceDeleteMsg %+v", topic, deviceDeleteMsg)
@@ -790,7 +574,7 @@ func ProcSubMsg(topic string, jsonMsg []byte) {
 		var mqttMsg mqttMsgSt
 		err := json.Unmarshal(jsonMsg, &mqttMsg)
 		if err != nil {
-			globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed: ", err)
+			globallogger.Log.Errorln("[Subscribe]: JSON marshaling failed:", err)
 			return
 		}
 		globallogger.Log.Warnf("[Subscribe]: mqtt msg subscribe: topic: %s, mqttMsg %+v", topic, mqttMsg)

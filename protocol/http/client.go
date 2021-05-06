@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,8 +19,6 @@ const (
 	headerKeyUsername = "x-openedge-username"
 	headerKeyPassword = "x-openedge-password"
 )
-
-var errAccountUnauthorized = errors.New("account unauthorized")
 
 // Client client of http server
 type Client struct {
@@ -114,7 +111,7 @@ func (c *Client) SendURL(method, url string, body io.Reader, header map[string]s
 		return nil, err
 	}
 	req.Header = Headers{}
-	if header != nil {
+	if len(header) > 0 {
 		for k, v := range header {
 			req.Header.Set(k, v)
 		}

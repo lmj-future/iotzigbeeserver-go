@@ -3,6 +3,7 @@ package crc
 import (
 	"encoding/hex"
 	"strconv"
+	"strings"
 
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 )
@@ -22,19 +23,18 @@ func CRC(msg []byte) string {
 		}
 	}
 	crc ^= 0xffff
-	tempcrcstr := "0000" + strconv.FormatInt(int64(crc), 16)
-	strcrc := tempcrcstr[len(tempcrcstr)-4:]
+	var builder strings.Builder
+	builder.WriteString("0000")
+	builder.WriteString(strconv.FormatInt(int64(crc), 16))
 
-	return strcrc
+	return strings.Repeat(builder.String()[builder.Len()-4:], 1)
 }
 
 //Check Check
 func Check(msg []byte) bool {
-	var crc = CRC(msg[0 : len(msg)-2])
-	if crc == hex.EncodeToString(msg[len(msg)-2:]) { //byte转hex字符
-		// globallogger.Log.Infoln("CRC check success !")
+	if CRC(append(msg[:0:0], msg[:len(msg)-2]...)) == hex.EncodeToString(append(msg[:0:0], msg[len(msg)-2:]...)) { //byte转hex字符
 		return true
 	}
-	globallogger.Log.Warnln("CRC check failed ! crc=", crc)
+	globallogger.Log.Warnln("CRC check failed ! crc=", CRC(append(msg[:0:0], msg[:len(msg)-2]...)))
 	return false
 }

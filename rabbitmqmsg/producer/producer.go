@@ -23,7 +23,7 @@ type TerminalState struct {
 // MsgContent 实现发送者
 func (t *TerminalState) MsgContent() string {
 	tJSONByte, _ := json.Marshal(t)
-	globallogger.Log.Warnf("[RabbitMQ] Send terminal state msg: %+v\n", string(tJSONByte))
+	globallogger.Log.Warnf("[RabbitMQ] Send terminal state msg: %+v", string(tJSONByte))
 	return string(tJSONByte)
 }
 

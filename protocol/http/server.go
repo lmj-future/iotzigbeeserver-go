@@ -15,6 +15,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Params http params
@@ -112,6 +113,11 @@ func (s *Server) Handle(handle func(Params, []byte) ([]byte, error), method, pat
 			res.Write(resBody)
 		}
 	}).Methods(method).Queries(params...)
+}
+
+// Handle handle requests
+func (s *Server) HandlePrometheus(method, path string, params ...string) {
+	s.router.Handle(path, promhttp.Handler()).Methods(method).Queries(params...)
 }
 
 // Start starts server

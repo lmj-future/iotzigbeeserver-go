@@ -11,6 +11,7 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 	"github.com/h3c/iotzigbeeserver-go/interactmodule/iotsmartspace"
 	"github.com/h3c/iotzigbeeserver-go/models"
+	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 	"github.com/h3c/iotzigbeeserver-go/publicstruct"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/cluster"
@@ -176,13 +177,17 @@ func airQualityMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command 
 		bPublish, oSet, oSetPG, params, values = airQualityMeasurementProcAttribute(terminalInfo.DevEUI, v.AttributeName, v.Attribute,
 			bPublish, oSet, oSetPG, params, values)
 	}
-	// globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReadRsp]: update terminal info: oSet %+v", terminalInfo.DevEUI, oSet)
 	if oSet["disturb"] != nil || oSet["minHumidity"] != nil || oSet["maxHumidity"] != nil || oSet["minTemperature"] != nil || oSet["maxTemperature"] != nil {
 		if constant.Constant.UsePostgres {
 			models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSetPG)
 		} else {
 			models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, oSet)
 		}
+		var key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.DevEUI
+		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.NwkAddr
+		}
+		publicfunction.DeleteTerminalInfoListCache(key)
 	}
 
 	if bPublish {
@@ -236,7 +241,11 @@ func airQualityMeasurementProcWriteResponse(terminalInfo config.TerminalInfo, co
 						terminalInfo.DevEUI, v.AttributeName)
 				}
 			}
-			// globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcWriteResponse]: oSet: %+v", terminalInfo.DevEUI, oSet)
+			var key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.DevEUI
+			if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+				key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.NwkAddr
+			}
+			publicfunction.DeleteTerminalInfoListCache(key)
 			if constant.Constant.UsePostgres {
 				models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSetPG)
 			} else {
@@ -256,37 +265,64 @@ func airQualityMeasurementProcWriteResponse(terminalInfo config.TerminalInfo, co
 
 // airQualityMeasurementProcReport 处理report（0x0a）消息
 func airQualityMeasurementProcReport(terminalInfo config.TerminalInfo, command interface{}) {
-	Command := command.(*cluster.ReportAttributesCommand)
-	globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	attributeReports := Command.AttributeReports
-	oSet := bson.M{}
-	oSetPG := make(map[string]interface{})
-	params := make(map[string]interface{}, 11)
-	values := make(map[string]interface{}, 11)
-	params["terminalId"] = terminalInfo.DevEUI
-	var bPublish = false
-	for _, v := range attributeReports {
-		bPublish, oSet, oSetPG, params, values = airQualityMeasurementProcAttribute(terminalInfo.DevEUI, v.AttributeName, v.Attribute,
-			bPublish, oSet, oSetPG, params, values)
-	}
-
-	// globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReport]: update terminal info: oSet %+v", terminalInfo.DevEUI, oSet)
-	if oSet["disturb"] != nil || oSet["minHumidity"] != nil || oSet["maxHumidity"] != nil || oSet["minTemperature"] != nil || oSet["maxTemperature"] != nil {
-		if constant.Constant.UsePostgres {
-			models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSetPG)
-		} else {
-			models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, oSet)
-		}
-	}
-
-	if bPublish {
-		// iotsmartspace publish msg to app
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+	globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReport]: command: %+v", terminalInfo.DevEUI, command.(*cluster.ReportAttributesCommand))
+	for _, v := range command.(*cluster.ReportAttributesCommand).AttributeReports {
+		switch v.AttributeName {
+		case "BatteryState":
+			var airState = "3"
+			if v.Attribute.Value.(uint64) == 0 {
+				airState = "0"
+			} else if v.Attribute.Value.(uint64) == 1 {
+				airState = "1"
+			} else if v.Attribute.Value.(uint64) == 2 {
+				airState = "2"
+			}
+			if constant.Constant.Iotware {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyAirState] = airState
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+			} else if constant.Constant.Iotedge {
+				params := make(map[string]interface{}, 2)
+				params["terminalId"] = terminalInfo.DevEUI
+				params[iotsmartspace.HeimanHS2AQPropertyBatteryState] = airState
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+			} else if constant.Constant.Iotprivate {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyAirState] = airState
+				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+			}
+		case "PM10MeasuredValue":
+			if constant.Constant.Iotware {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+			} else if constant.Constant.Iotedge {
+				params := make(map[string]interface{}, 2)
+				params["terminalId"] = terminalInfo.DevEUI
+				params[iotsmartspace.HeimanHS2AQPropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+			} else if constant.Constant.Iotprivate {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+			}
+		case "AQIMeasuredValue":
+			if constant.Constant.Iotware {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+			} else if constant.Constant.Iotedge {
+				params := make(map[string]interface{}, 2)
+				params["terminalId"] = terminalInfo.DevEUI
+				params[iotsmartspace.HeimanHS2AQPropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+			} else if constant.Constant.Iotprivate {
+				values := make(map[string]interface{}, 1)
+				values[iotsmartspace.IotwarePropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+			}
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcReport] invalid attributeName: %v", terminalInfo.DevEUI, v.AttributeName)
 		}
 	}
 }
@@ -320,18 +356,14 @@ func airQualityMeasurementProcDefaultResponse(terminalInfo config.TerminalInfo, 
 
 // AirQualityMeasurementProc 处理clusterID 0xfc81属性消息
 func AirQualityMeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame, msgID interface{}, contentFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][AirQualityMeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][AirQualityMeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		airQualityMeasurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandWriteAttributesResponse)].Name:
+	case "WriteAttributesResponse":
 		airQualityMeasurementProcWriteResponse(terminalInfo, zclFrame.Command, msgID, contentFrame)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		airQualityMeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandDefaultResponse)].Name:
+	case "DefaultResponse":
 		airQualityMeasurementProcDefaultResponse(terminalInfo, zclFrame.Command, msgID, contentFrame)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][AirQualityMeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)

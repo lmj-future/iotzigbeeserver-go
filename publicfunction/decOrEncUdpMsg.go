@@ -1,8 +1,8 @@
 package publicfunction
 
 import (
+	"bytes"
 	"encoding/hex"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -19,53 +19,46 @@ func ParseUDPMsg(udpMsg []byte, rinfo dgram.RInfo) publicstruct.JSONInfo {
 	var tunnelHeader = parseTunnelHeader(udpMsg)
 	var messageHeader = parseMessageHeader(udpMsg, tunnelHeader.TunnelHeaderLen)
 	var messagePayload = parseMessagePayload(udpMsg, tunnelHeader.TunnelHeaderLen+messageHeader.MessageHeaderLen)
-	var jsonInfo = publicstruct.JSONInfo{
+	if messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralKeepalive ||
+		messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101 {
+	} else if messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
+		messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 {
+	} else {
+		globallogger.Log.Infof("[ParseUDPMsg]devEUI : %+v [tunnelHeader]:%+v [messageHeader]:%+v [messagePayload]:%+v",
+			messagePayload.Address, tunnelHeader, messageHeader, messagePayload)
+	}
+
+	return publicstruct.JSONInfo{
 		TunnelHeader:   tunnelHeader,   //传输头
 		MessageHeader:  messageHeader,  //应用头
 		MessagePayload: messagePayload, //应用数据
 		Rinfo:          rinfo,
 	}
-	if messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralKeepalive ||
-		messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101 {
-		// globallogger.Log.Infoln("==========================KEEPALIVE===========================")
-	} else if messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
-		messageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 {
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "============================RECV ACK==========================")
-	} else {
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "========================parseUdpMsg start=====================")
-		globallogger.Log.Infoln("devEUI : " + messagePayload.Address + fmt.Sprintf(" %+v", jsonInfo))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + fmt.Sprintf(" %+v", jsonInfo.TunnelHeader))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + fmt.Sprintf(" %+v", jsonInfo.MessageHeader))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + fmt.Sprintf(" %+v", jsonInfo.MessagePayload))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + fmt.Sprintf(" %+v", jsonInfo.Rinfo))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "========================parseUdpMsg end ======================")
-	}
-
-	return jsonInfo
 }
 
 func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
-	var tunnelHeader = publicstruct.TunnelHeader{}
-	tunnelHeader.Version = hex.EncodeToString(udpMsg[0:2])  //协议版本（2byte）
-	tunnelHeader.FrameLen = hex.EncodeToString(udpMsg[2:4]) //帧长度（2byte）
-	tunnelHeader.FrameSN = hex.EncodeToString(udpMsg[4:6])  //帧序列号（2byte）
-	var linkInfo = publicstruct.LinkInfo{}                  //链路信息
-	var addrInfo = publicstruct.AddrInfo{}                  //n级地址
+	var tunnelHeader = publicstruct.TunnelHeader{
+		Version:  hex.EncodeToString(append(udpMsg[:0:0], udpMsg[0:2]...)), //协议版本（2byte）
+		FrameLen: hex.EncodeToString(append(udpMsg[:0:0], udpMsg[2:4]...)), //帧长度（2byte）
+		FrameSN:  hex.EncodeToString(append(udpMsg[:0:0], udpMsg[4:6]...)), //帧序列号（2byte）
+	}
+	var linkInfo = publicstruct.LinkInfo{ //链路信息
+		AddrNum: hex.EncodeToString(append(udpMsg[:0:0], udpMsg[6:7]...)), //地址个数
+	}
 	var linkInfoLen = 0
-	linkInfo.AddrNum = hex.EncodeToString(udpMsg[6:7])        //地址个数
 	addrNum, _ := strconv.ParseInt(linkInfo.AddrNum, 16, 0)   //字符转16进制数
 	var address = make([]publicstruct.AddrInfo, int(addrNum)) //地址列表
 	for index := 0; index < int(addrNum); index++ {
-		addrInfo.AddrInfo = hex.EncodeToString(udpMsg[7+linkInfoLen : 8+linkInfoLen])
+		var addrInfo = publicstruct.AddrInfo{} //n级地址
+		addrInfo.AddrInfo = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[7+linkInfoLen:8+linkInfoLen]...))
 		addrLen, _ := strconv.ParseInt(addrInfo.AddrInfo, 16, 0) //n级地址长度
 		var addrLength = int(addrLen) & 31                       //bit 4-0, length
 		if (addrLen >> 5) == 0 {                                 //bit 7-5, 0b000,mac
-			addrInfo.MACAddr = hex.EncodeToString(udpMsg[8+linkInfoLen : 8+linkInfoLen+addrLength])
+			addrInfo.MACAddr = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[8+linkInfoLen:8+linkInfoLen+addrLength]...))
 		} else if (addrLen >> 5) == 1 { //bit 7-5, 0b001,sn
-			addrInfo.SN = hex.EncodeToString(udpMsg[8+linkInfoLen : 8+linkInfoLen+addrLength])
+			addrInfo.SN = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[8+linkInfoLen:8+linkInfoLen+addrLength]...))
 		}
 		address[index] = addrInfo
-		addrInfo = publicstruct.AddrInfo{}
 		linkInfoLen += (addrLength + 1)
 	}
 	if addrNum == 3 { //3级
@@ -109,37 +102,30 @@ func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
 		linkInfo.FirstAddr = linkInfo.APMac
 	}
 	linkInfo.Address = address
-	tunnelHeader.LinkInfo = linkInfo           //��·��Ϣ   //链路信息
-	var extendInfo = publicstruct.ExtendInfo{} //��չ�ֶ�,bit2:0b0������0b1���ܣ�bit1-0:0b00����ҪӦ��0b01��ҪӦ��0b10Ӧ��0b11����
-	var extendData = hex.EncodeToString(udpMsg[7+linkInfoLen : 9+linkInfoLen])
+	tunnelHeader.LinkInfo = linkInfo
+	var extendData = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[7+linkInfoLen:9+linkInfoLen]...))
 	isNeedUserName, _ := strconv.ParseInt(extendData, 16, 0)
-	isNeedUserName = isNeedUserName & 32
 	isNeedDevType, _ := strconv.ParseInt(extendData, 16, 0)
-	isNeedDevType = isNeedDevType & 16
 	isNeedVender, _ := strconv.ParseInt(extendData, 16, 0)
-	isNeedVender = isNeedVender & 8
 	isNeedSec, _ := strconv.ParseInt(extendData, 16, 0)
-	isNeedSec = isNeedVender & 4
 	optionType, _ := strconv.ParseInt(extendData, 16, 0)
-	optionType = optionType & 3
-	//var isNeedVender = parseInt(extendData, 16) & 8
-	//var isNeedSec = parseInt(extendData, 16) & 4
-	//var optionType = parseInt(extendData, 16) & 3
-	extendInfo.IsNeedUserName = (isNeedUserName == 32)
-	extendInfo.IsNeedDevType = (isNeedDevType == 16)
-	extendInfo.IsNeedVender = (isNeedVender == 8)
-	extendInfo.IsNeedSec = (isNeedSec == 4)
-	extendInfo.AckOptionType = int(optionType) //0,1,2
-	extendInfo.ExtendData = extendData
+	var extendInfo = publicstruct.ExtendInfo{
+		IsNeedUserName: (isNeedUserName & 32) == 32,
+		IsNeedDevType:  (isNeedDevType & 16) == 16,
+		IsNeedVender:   (isNeedVender & 8) == 8,
+		IsNeedSec:      (isNeedSec & 4) == 4,
+		AckOptionType:  int(optionType & 3), //0,1,2
+		ExtendData:     extendData,
+	}
 	tunnelHeader.ExtendInfo = extendInfo //扩展字段
 	var secInfo = publicstruct.SecInfo{}
 	var secInfoLen = 0
 	if extendInfo.IsNeedSec {
-		secInfo.SecType = hex.EncodeToString(udpMsg[9+linkInfoLen : 10+linkInfoLen])
-		secInfo.SecDataLen = hex.EncodeToString(udpMsg[10+linkInfoLen : 11+linkInfoLen])
+		secInfo.SecType = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[9+linkInfoLen:10+linkInfoLen]...))
+		secInfo.SecDataLen = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[10+linkInfoLen:11+linkInfoLen]...))
 		secDataLen, _ := strconv.ParseInt(secInfo.SecDataLen, 16, 0)
-		secInfo.SecData = hex.EncodeToString(udpMsg[11+linkInfoLen : 11+linkInfoLen+int(secDataLen)])
-		secInfo.SecID = hex.EncodeToString(udpMsg[11+linkInfoLen+int(secDataLen) : 12+linkInfoLen+int(secDataLen)])
+		secInfo.SecData = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[11+linkInfoLen:11+linkInfoLen+int(secDataLen)]...))
+		secInfo.SecID = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[11+linkInfoLen+int(secDataLen):12+linkInfoLen+int(secDataLen)]...))
 		secInfoLen = 1 + 1 + int(secDataLen) + 1
 	}
 	var venderInfo = struct {
@@ -148,10 +134,9 @@ func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
 	}{}
 	var venderInfoLen = 0
 	if extendInfo.IsNeedVender {
-		venderInfo.VenderIDLen = hex.EncodeToString(udpMsg[9+linkInfoLen+secInfoLen : 10+linkInfoLen+secInfoLen])
+		venderInfo.VenderIDLen = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[9+linkInfoLen+secInfoLen:10+linkInfoLen+secInfoLen]...))
 		venderIDLen, _ := strconv.ParseInt(venderInfo.VenderIDLen, 16, 0)
-		//venderInfo.VenderID = hex.EncodeToString(udpMsg[10+linkInfoLen+secInfoLen : 10+linkInfoLen+secInfoLen+venderIDLen])
-		venderInfo.VenderID = string(udpMsg[10+linkInfoLen+secInfoLen : 10+linkInfoLen+secInfoLen+int(venderIDLen)])
+		venderInfo.VenderID = string(append(udpMsg[:0:0], udpMsg[10+linkInfoLen+secInfoLen:10+linkInfoLen+secInfoLen+int(venderIDLen)]...))
 		venderInfoLen = 1 + int(venderIDLen)
 	}
 	var devTypeInfo = struct {
@@ -160,9 +145,9 @@ func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
 	}{}
 	var devTypeInfoLen = 0
 	if extendInfo.IsNeedDevType {
-		devTypeInfo.DevTypeLen = hex.EncodeToString(udpMsg[9+linkInfoLen+secInfoLen+venderInfoLen : 10+linkInfoLen+secInfoLen+venderInfoLen])
+		devTypeInfo.DevTypeLen = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[9+linkInfoLen+secInfoLen+venderInfoLen:10+linkInfoLen+secInfoLen+venderInfoLen]...))
 		devTypeLen, _ := strconv.ParseInt(devTypeInfo.DevTypeLen, 16, 0)
-		devTypeInfo.DevType = string(udpMsg[10+linkInfoLen+secInfoLen+venderInfoLen : 10+linkInfoLen+secInfoLen+venderInfoLen+int(devTypeLen)])
+		devTypeInfo.DevType = string(append(udpMsg[:0:0], udpMsg[10+linkInfoLen+secInfoLen+venderInfoLen:10+linkInfoLen+secInfoLen+venderInfoLen+int(devTypeLen)]...))
 		devTypeInfoLen = 1 + int(devTypeLen)
 	}
 	var userNameInfo = struct {
@@ -171,13 +156,13 @@ func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
 	}{}
 	var userNameInfoLen = 0
 	if extendInfo.IsNeedUserName {
-		userNameInfo.UserNameLen = hex.EncodeToString(udpMsg[9+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen : 10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen])
+		userNameInfo.UserNameLen = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[9+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen:10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen]...))
 		userNameLen, _ := strconv.ParseInt(userNameInfo.UserNameLen, 16, 0)
-		userNameInfo.UserName = string(udpMsg[10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen : 10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen+int(userNameLen)])
+		userNameInfo.UserName = string(append(udpMsg[:0:0], udpMsg[10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen:10+linkInfoLen+secInfoLen+venderInfoLen+devTypeInfoLen+int(userNameLen)]...))
 		userNameInfoLen = 1 + int(userNameLen)
 	}
-	tunnelHeader.SecInfo = secInfo       //������Ϣ    //加密字段
-	tunnelHeader.VenderInfo = venderInfo //������Ϣ  //场景字段
+	tunnelHeader.SecInfo = secInfo       //加密字段
+	tunnelHeader.VenderInfo = venderInfo //场景字段
 	tunnelHeader.DevTypeInfo = devTypeInfo
 	tunnelHeader.UserNameInfo = userNameInfo
 	tunnelHeader.TunnelHeaderLen = 9 + linkInfoLen + secInfoLen + venderInfoLen + devTypeInfoLen + userNameInfoLen
@@ -185,21 +170,21 @@ func parseTunnelHeader(udpMsg []byte) publicstruct.TunnelHeader {
 }
 
 func parseMessageHeader(udpMsg []byte, len int) publicstruct.MessageHeader {
-	var messageHeader = publicstruct.MessageHeader{}
-	messageHeader.OptionType = hex.EncodeToString(udpMsg[len : len+2]) //������,0b00����ҪӦ��0b01��ҪӦ��0b10Ӧ��0b11����
-	messageHeader.SN = hex.EncodeToString(udpMsg[len+2 : len+4])       //����Ӧ�ò���ش����վܾ���ƥ��Ӧ��
-	messageHeader.MsgType = hex.EncodeToString(udpMsg[len+4 : len+6])  //��Ϣ���ͣ���4Bit��0b0000����ϵͳ��0b0001����rfid0b0010����zigbee
-	messageHeader.MessageHeaderLen = 6
-	return messageHeader
+	return publicstruct.MessageHeader{
+		OptionType:       hex.EncodeToString(append(udpMsg[:0:0], udpMsg[len:len+2]...)),
+		SN:               hex.EncodeToString(append(udpMsg[:0:0], udpMsg[len+2:len+4]...)),
+		MsgType:          hex.EncodeToString(append(udpMsg[:0:0], udpMsg[len+4:len+6]...)),
+		MessageHeaderLen: 6,
+	}
 }
 
 func parseMessagePayload(udpMsg []byte, length int) publicstruct.MessagePayload {
-	var messagePayload = publicstruct.MessagePayload{}
-	messagePayload.ModuleID = hex.EncodeToString(udpMsg[length : length+1])
-	//messagePayload.Ctrl = hex.EncodeToString(udpMsg[len+1 : len+2])
-	ctrl, _ := strconv.ParseInt(hex.EncodeToString(udpMsg[length+1:length+2]), 16, 0)
+	var messagePayload = publicstruct.MessagePayload{
+		ModuleID: hex.EncodeToString(append(udpMsg[:0:0], udpMsg[length:length+1]...)),
+	}
+	ctrl, _ := strconv.ParseInt(hex.EncodeToString(append(udpMsg[:0:0], udpMsg[length+1:length+2]...)), 16, 0)
 	messagePayload.Ctrl = int(ctrl)
-	var ctrlMsg = parseCtrl(udpMsg[length+2:], messagePayload.Ctrl)
+	var ctrlMsg = parseCtrl(append(udpMsg[:0:0], udpMsg[length+2:]...), messagePayload.Ctrl)
 	if len(ctrlMsg.Addr) == 4 {
 		messagePayload.Address = ctrlMsg.Addr
 	} else {
@@ -207,8 +192,8 @@ func parseMessagePayload(udpMsg []byte, length int) publicstruct.MessagePayload 
 	}
 	messagePayload.SubAddr = ctrlMsg.SubAddr
 	messagePayload.PortID = ctrlMsg.PortID
-	messagePayload.Topic = hex.EncodeToString(udpMsg[length+2+ctrlMsg.CtrlLen : length+2+ctrlMsg.CtrlLen+4])
-	messagePayload.Data = hex.EncodeToString(udpMsg[length+2+ctrlMsg.CtrlLen+4 : len(udpMsg)-2])
+	messagePayload.Topic = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[length+2+ctrlMsg.CtrlLen:length+2+ctrlMsg.CtrlLen+4]...))
+	messagePayload.Data = hex.EncodeToString(append(udpMsg[:0:0], udpMsg[length+2+ctrlMsg.CtrlLen+4:len(udpMsg)-2]...))
 
 	return messagePayload
 }
@@ -229,7 +214,7 @@ func parseCtrl(udpMsg []byte, ctrl int) publicstruct.CtrlMsg {
 		portIDLen = 8
 	default:
 		portIDLen = 0
-		globallogger.Log.Warnln("invalid portIDLen: ", portIDLen)
+		globallogger.Log.Warnln("invalid portIDLen:", portIDLen)
 	}
 	switch subAddrLen {
 	case 0:
@@ -242,7 +227,7 @@ func parseCtrl(udpMsg []byte, ctrl int) publicstruct.CtrlMsg {
 		subAddrLen = 8
 	default:
 		subAddrLen = 0
-		globallogger.Log.Warnln("invalid subAddrLen: ", subAddrLen)
+		globallogger.Log.Warnln("invalid subAddrLen:", subAddrLen)
 	}
 	switch reserve {
 	case 0: //����1
@@ -257,7 +242,7 @@ func parseCtrl(udpMsg []byte, ctrl int) publicstruct.CtrlMsg {
 			addrLen = 20
 		default:
 			addrLen = 0
-			globallogger.Log.Warnln("invalid addrLen: ", addrLen)
+			globallogger.Log.Warnln("invalid addrLen:", addrLen)
 		}
 	case 1: //����2
 		switch addrLen {
@@ -267,16 +252,16 @@ func parseCtrl(udpMsg []byte, ctrl int) publicstruct.CtrlMsg {
 			addrLen = 2
 		default:
 			addrLen = 0
-			globallogger.Log.Warnln("invalid addrLen: ", addrLen)
+			globallogger.Log.Warnln("invalid addrLen:", addrLen)
 		}
 	}
-	var msg = publicstruct.CtrlMsg{}
-	msg.Addr = hex.EncodeToString(udpMsg[0:addrLen])
-	msg.SubAddr = hex.EncodeToString(udpMsg[addrLen : addrLen+subAddrLen])
-	msg.PortID = hex.EncodeToString(udpMsg[addrLen+subAddrLen : addrLen+subAddrLen+portIDLen])
-	msg.CtrlLen = addrLen + subAddrLen + portIDLen
 
-	return msg
+	return publicstruct.CtrlMsg{
+		Addr:    hex.EncodeToString(append(udpMsg[:0:0], udpMsg[0:addrLen]...)),
+		SubAddr: hex.EncodeToString(append(udpMsg[:0:0], udpMsg[addrLen:addrLen+subAddrLen]...)),
+		PortID:  hex.EncodeToString(append(udpMsg[:0:0], udpMsg[addrLen+subAddrLen:addrLen+subAddrLen+portIDLen]...)),
+		CtrlLen: addrLen + subAddrLen + portIDLen,
+	}
 }
 
 func encCtrl(addrLen int, subAddrLen int, portIDLen int) int {
@@ -293,7 +278,7 @@ func encCtrl(addrLen int, subAddrLen int, portIDLen int) int {
 	case 20:
 		addrLen = 3
 	default:
-		globallogger.Log.Warnln("Invalid address length: ", addrLen)
+		globallogger.Log.Warnln("Invalid address length:", addrLen)
 	}
 
 	switch subAddrLen {
@@ -306,7 +291,7 @@ func encCtrl(addrLen int, subAddrLen int, portIDLen int) int {
 	case 8:
 		subAddrLen = 3
 	default:
-		globallogger.Log.Warnln("Invalid sub address length: ", subAddrLen)
+		globallogger.Log.Warnln("Invalid sub address length:", subAddrLen)
 	}
 
 	switch portIDLen {
@@ -319,41 +304,57 @@ func encCtrl(addrLen int, subAddrLen int, portIDLen int) int {
 	case 8:
 		portIDLen = 3
 	default:
-		globallogger.Log.Warnln("Invalid port ID length: ", portIDLen)
+		globallogger.Log.Warnln("Invalid port ID length:", portIDLen)
 	}
 
 	return reserve<<6 | portIDLen<<4 | subAddrLen<<2 | addrLen
 }
 
 func getTunnelHeader(tunnelHeader TunnelHeaderSerial, devEUI string) []byte {
-	var str = tunnelHeader.Version + tunnelHeader.FrameLen + tunnelHeader.FrameSN + tunnelHeader.LinkInfo +
-		tunnelHeader.ExtendInfo + tunnelHeader.SecInfo + tunnelHeader.VenderInfo + tunnelHeader.DevTypeInfo + tunnelHeader.UserNameInfo
-	if len(str)%2 != 0 {
-		globallogger.Log.Warnln("devEUI : " + devEUI + " " + "getTunnelHeader WRONG STRING LENGTH!")
-		str = "00"
+	var tunnelHeaderBuilder strings.Builder
+	tunnelHeaderBuilder.WriteString(tunnelHeader.Version)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.FrameLen)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.FrameSN)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.LinkInfo)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.ExtendInfo)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.SecInfo)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.VenderInfo)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.DevTypeInfo)
+	tunnelHeaderBuilder.WriteString(tunnelHeader.UserNameInfo)
+	if tunnelHeaderBuilder.Len()%2 != 0 {
+		globallogger.Log.Warnln("devEUI :", devEUI, "getTunnelHeader WRONG STRING LENGTH!")
+		return []byte{0x00, 0x00}
 	}
-	tempBuffer, _ := hex.DecodeString(str)
-	return tempBuffer //Buffer.from(string, "hex");
+	tempBuffer, _ := hex.DecodeString(tunnelHeaderBuilder.String())
+	return tempBuffer
 }
 
 func getMessageHeader(messageHeader MessageHeaderSerial, devEUI string) []byte {
-	var str = messageHeader.OptionType + messageHeader.SN + messageHeader.MsgType
-	if len(str)%2 != 0 {
-		globallogger.Log.Warnln("devEUI : " + devEUI + " " + "getMessageHeader WRONG STRING LENGTH!")
-		str = "00"
+	var messageHeaderBuilder strings.Builder
+	messageHeaderBuilder.WriteString(messageHeader.OptionType)
+	messageHeaderBuilder.WriteString(messageHeader.SN)
+	messageHeaderBuilder.WriteString(messageHeader.MsgType)
+	if messageHeaderBuilder.Len()%2 != 0 {
+		globallogger.Log.Warnln("devEUI :", devEUI, "getMessageHeader WRONG STRING LENGTH!")
+		return []byte{0x00, 0x00}
 	}
-	tempBuffer, _ := hex.DecodeString(str)
-	return tempBuffer //Buffer.from(string, "hex")
+	tempBuffer, _ := hex.DecodeString(messageHeaderBuilder.String())
+	return tempBuffer
 }
 
 func getMessagePayload(messagePayload MessagePayloadSerial, devEUI string) []byte {
-	var str = messagePayload.ModuleID + messagePayload.Ctrl + messagePayload.Address + messagePayload.Topic + messagePayload.Data
-	if len(str)%2 != 0 {
-		globallogger.Log.Warnln("devEUI : " + devEUI + " " + "getMessagePayload WRONG STRING LENGTH!")
-		str = "00"
+	var messagePayloadBuilder strings.Builder
+	messagePayloadBuilder.WriteString(messagePayload.ModuleID)
+	messagePayloadBuilder.WriteString(messagePayload.Ctrl)
+	messagePayloadBuilder.WriteString(messagePayload.Address)
+	messagePayloadBuilder.WriteString(messagePayload.Topic)
+	messagePayloadBuilder.WriteString(messagePayload.Data)
+	if messagePayloadBuilder.Len()%2 != 0 {
+		globallogger.Log.Warnln("devEUI :", devEUI, "getMessagePayload WRONG STRING LENGTH!")
+		return []byte{0x00, 0x00}
 	}
-	tempBuffer, _ := hex.DecodeString(str)
-	return tempBuffer //Buffer.from(string, "hex");
+	tempBuffer, _ := hex.DecodeString(messagePayloadBuilder.String())
+	return tempBuffer
 }
 
 //TunnelHeaderSerial TunnelHeaderSerial
@@ -396,108 +397,107 @@ type SendDownMsg struct {
 }
 
 func encDownBuf(encParameter EncParameter, UDPVersion string) SendDownMsg {
-	var tunnelHeader = TunnelHeaderSerial{}
-	var messageHeader = MessageHeaderSerial{}
-	var messagePayload = MessagePayloadSerial{}
 	if UDPVersion == "" {
 		UDPVersion = "0001"
 	}
-	tunnelHeader.Version = UDPVersion
-	tunnelHeader.FrameLen = "0000"
-	tunnelHeader.FrameSN = encParameter.SN
-	var linkInfo = "01"
-	var APMacLen = len(encParameter.APMac) / 2
-	if encParameter.T300ID != "" {
-		linkInfo = "03"
-		//var T300IDLen = len(encParameter.T300ID) / 2
-	} else {
-		if encParameter.ACMac != "" {
-			linkInfo = "02"
-		}
+	var tunnelHeader = TunnelHeaderSerial{
+		Version:      UDPVersion,
+		FrameLen:     "0000",
+		FrameSN:      encParameter.SN,
+		ExtendInfo:   encParameter.ackOptionType,
+		SecInfo:      "",
+		VenderInfo:   "",
+		DevTypeInfo:  "",
+		UserNameInfo: "",
 	}
-	if encParameter.ACMac != "" {
-		var ACMacLen = len(encParameter.ACMac) / 2
-		if ACMacLen > 6 {
-			//linkInfo = linkInfo + ("00" + (ACMacLen | (1 << 5)).toString(16)).slice(-2) + encParameter.ACMac
-			tempValue := "00" + strconv.FormatInt(int64(ACMacLen|(1<<5)), 16)
-			linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.ACMac
-		} else {
-			//linkInfo = linkInfo + ("00" + ACMacLen.toString(16)).slice(-2) + encParameter.ACMac
-			tempValue := "00" + strconv.FormatInt(int64(ACMacLen), 16)
-			linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.ACMac
-		}
+	var messageHeader = MessageHeaderSerial{
+		OptionType: encParameter.optionType,
+		SN:         "0000",
+		MsgType:    encParameter.msgType,
 	}
-	if APMacLen > 6 {
-		//linkInfo = linkInfo + ("00" + (APMacLen | (1 << 5)).toString(16)).slice(-2) + encParameter.APMac
-		tempValue := "00" + strconv.FormatInt(int64(APMacLen|(1<<5)), 16)
-		linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.APMac
-	} else {
-		//linkInfo = linkInfo + ("00" + APMacLen.toString(16)).slice(-2) + encParameter.APMac
-		tempValue := "00" + strconv.FormatInt(int64(APMacLen), 16)
-		linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.APMac
-	}
-	if encParameter.T300ID != "" {
-		var T300IDLen = len(encParameter.T300ID) / 2
-		if T300IDLen > 8 {
-			//linkInfo = linkInfo + ("00" + (T300IDLen | (1 << 5)).toString(16)).slice(-2) + encParameter.T300ID
-			tempValue := "00" + strconv.FormatInt(int64(T300IDLen|(1<<5)), 16)
-			linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.T300ID
-		} else {
-			//linkInfo = linkInfo + ("00" + T300IDLen.toString(16)).slice(-2) + encParameter.T300ID
-			tempValue := "00" + strconv.FormatInt(int64(T300IDLen), 16)
-			linkInfo = linkInfo + tempValue[len(tempValue)-2:] + encParameter.T300ID
-		}
-	}
-
-	tunnelHeader.LinkInfo = linkInfo
-	tunnelHeader.ExtendInfo = encParameter.ackOptionType
-	tunnelHeader.SecInfo = ""
-	tunnelHeader.VenderInfo = ""
-	tunnelHeader.DevTypeInfo = ""
-	tunnelHeader.UserNameInfo = ""
-	messageHeader.OptionType = encParameter.optionType
-	messageHeader.SN = "0000"
-	messageHeader.MsgType = encParameter.msgType
-	messagePayload.ModuleID = encParameter.moduleID
 	var ctrl int
 	if UDPVersion == constant.Constant.UDPVERSION.Version0102 {
 		ctrl = encCtrl(2, 0, 0)
 	} else {
 		ctrl = encCtrl(8, 0, 0)
 	}
-	tempCtrl := "00" + strconv.FormatInt(int64(ctrl), 16)
-	messagePayload.Ctrl = tempCtrl[len(tempCtrl)-2:]
-	messagePayload.Address = encParameter.devEUI
-	messagePayload.Topic = "ffffffff"
-	messagePayload.Data = encParameter.data
+	var ctrlBuilder strings.Builder
+	ctrlBuilder.WriteString("00")
+	ctrlBuilder.WriteString(strconv.FormatInt(int64(ctrl), 16))
+	var messagePayload = MessagePayloadSerial{
+		ModuleID: encParameter.moduleID,
+		Ctrl:     strings.Repeat(ctrlBuilder.String()[ctrlBuilder.Len()-2:], 1),
+		Address:  encParameter.devEUI,
+		Topic:    "ffffffff",
+		Data:     encParameter.data,
+	}
+	var linkInfoBuilder strings.Builder
+	if encParameter.T300ID != "" {
+		linkInfoBuilder.WriteString("03")
+	} else {
+		if encParameter.ACMac != "" {
+			linkInfoBuilder.WriteString("02")
+		} else {
+			linkInfoBuilder.WriteString("01")
+		}
+	}
+	if encParameter.ACMac != "" {
+		var ACLenBuilder strings.Builder
+		ACLenBuilder.WriteString("00")
+		if len(encParameter.ACMac)/2 > 6 {
+			ACLenBuilder.WriteString(strconv.FormatInt(int64((len(encParameter.ACMac)/2)|(1<<5)), 16))
+		} else {
+			ACLenBuilder.WriteString(strconv.FormatInt(int64(len(encParameter.ACMac)/2), 16))
+		}
+		linkInfoBuilder.WriteString(strings.Repeat(ACLenBuilder.String()[ACLenBuilder.Len()-2:], 1))
+		linkInfoBuilder.WriteString(encParameter.ACMac)
+	}
+	var APLenBuilder strings.Builder
+	APLenBuilder.WriteString("00")
+	if len(encParameter.APMac)/2 > 6 {
+		APLenBuilder.WriteString(strconv.FormatInt(int64((len(encParameter.APMac)/2)|(1<<5)), 16))
+	} else {
+		APLenBuilder.WriteString(strconv.FormatInt(int64(len(encParameter.APMac)/2), 16))
+	}
+	linkInfoBuilder.WriteString(strings.Repeat(APLenBuilder.String()[APLenBuilder.Len()-2:], 1))
+	linkInfoBuilder.WriteString(encParameter.APMac)
+	if encParameter.T300ID != "" {
+		var T300IDLenBuilder strings.Builder
+		T300IDLenBuilder.WriteString("00")
+		if len(encParameter.T300ID)/2 > 8 {
+			T300IDLenBuilder.WriteString(strconv.FormatInt(int64((len(encParameter.T300ID)/2)|(1<<5)), 16))
+		} else {
+			T300IDLenBuilder.WriteString(strconv.FormatInt(int64(len(encParameter.T300ID)/2), 16))
+		}
+		linkInfoBuilder.WriteString(strings.Repeat(T300IDLenBuilder.String()[T300IDLenBuilder.Len()-2:], 1))
+		linkInfoBuilder.WriteString(encParameter.T300ID)
+	}
+	tunnelHeader.LinkInfo = linkInfoBuilder.String()
 
 	if encParameter.msgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
 		encParameter.msgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 {
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "========================SEND ACK==============================")
 	} else {
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "=====================encDownBuf start=========================")
-		globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " down msg: " + fmt.Sprintf("%+v", tunnelHeader) +
-			fmt.Sprintf("%+v", messageHeader) + fmt.Sprintf("%+v", messagePayload))
-		// globallogger.Log.Infoln("devEUI : " + messagePayload.Address + " " + "=====================encDownBuf end  =========================")
+		globallogger.Log.Infof("devEUI : %+v down msg: %+v %+v %+v", messagePayload.Address, tunnelHeader, messageHeader, messagePayload)
 	}
 
 	var tunnelHeaderBuf = getTunnelHeader(tunnelHeader, encParameter.devEUI)
 	var messageHeaderBuf = getMessageHeader(messageHeader, encParameter.devEUI)
 	var messagePayloadBuf = getMessagePayload(messagePayload, encParameter.devEUI)
-	var length = len(tunnelHeaderBuf) + len(messageHeaderBuf) + len(messagePayloadBuf) + 2
-	//tunnelHeader.FrameLen = ("0000" + length.toString(16)).slice(-4)
-	tempFrameLen := "0000" + strconv.FormatInt(int64(length), 16)
-	tunnelHeader.FrameLen = tempFrameLen[len(tempFrameLen)-4:]
+	var frameLenBuilder strings.Builder
+	frameLenBuilder.WriteString("0000")
+	frameLenBuilder.WriteString(strconv.FormatInt(int64(len(tunnelHeaderBuf)+len(messageHeaderBuf)+len(messagePayloadBuf)+2), 16))
+	tunnelHeader.FrameLen = strings.Repeat(frameLenBuilder.String()[frameLenBuilder.Len()-4:], 1)
 	tunnelHeaderBuf = getTunnelHeader(tunnelHeader, encParameter.devEUI)
 
-	var returnData = SendDownMsg{}
-	returnData.SN = tunnelHeader.FrameSN
-	//var buf = Buffer.concat([tunnelHeaderBuf, messageHeaderBuf, messagePayloadBuf], length-2)
-	var buf = []byte(string(tunnelHeaderBuf) + string(messageHeaderBuf) + string(messagePayloadBuf))[:length-2]
-	var crc = crc.CRC(buf)
-	//returnData.sendBuf = Buffer.concat([tunnelHeaderBuf, messageHeaderBuf, messagePayloadBuf, Buffer.from(crc,"hex")], length)
-	tempBuffer, _ := hex.DecodeString(crc)
-	returnData.sendBuf = []byte(string(tunnelHeaderBuf) + string(messageHeaderBuf) + string(messagePayloadBuf) + string(tempBuffer))[:length]
+	var sendBuf bytes.Buffer
+	sendBuf.WriteString(string(tunnelHeaderBuf))
+	sendBuf.WriteString(string(messageHeaderBuf))
+	sendBuf.WriteString(string(messagePayloadBuf))
+	crcBuf, _ := hex.DecodeString(crc.CRC(sendBuf.Bytes()))
+	sendBuf.WriteString(string(crcBuf))
 
-	return returnData
+	return SendDownMsg{
+		SN:      tunnelHeader.FrameSN,
+		sendBuf: sendBuf.Bytes(),
+	}
 }

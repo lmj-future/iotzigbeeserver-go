@@ -94,24 +94,22 @@ func genBasicProcProcReadRsp(terminalInfo config.TerminalInfo, command interface
 				basicInfo.SWBuildID = v.Attribute.Value.(string)
 			}
 		default:
-			globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"procBasicReadRsp unknow attributeName", v.AttributeName)
+			globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "procBasicReadRsp unknow attributeName", v.AttributeName)
 		}
 	}
 	globallogger.Log.Infof("[devEUI: %v][genBasicProcProcReadRsp]: read rsp: basicInfo %+v", terminalInfo.DevEUI, basicInfo)
 }
 
 func procGenBasicProcRead(devEUI string, dstEndpointIndex int, clusterID uint16) {
-	cmd := common.Command{
-		DstEndpointIndex: dstEndpointIndex,
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.ReadAttribute,
 		ClusterID:   clusterID,
-		Command:     cmd,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			DstEndpointIndex: dstEndpointIndex,
+		},
+	})
 }
 
 func genBasicProcKeepAlive(devEUI string, tmnType string, interval uint16) {
@@ -123,16 +121,16 @@ func genBasicProcKeepAlive(devEUI string, tmnType string, interval uint16) {
 		keepalive.ProcKeepAlive(devEUI, interval)
 		go procGenBasicProcRead(devEUI, 0, 0x0006)
 		go func() {
-			select {
-			case <-time.After(time.Duration(2) * time.Second):
-				procGenBasicProcRead(devEUI, 0, 0x0702)
-			}
+			timer := time.NewTimer(2 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenBasicProcRead(devEUI, 0, 0x0702)
 		}()
 		go func() {
-			select {
-			case <-time.After(time.Duration(4) * time.Second):
-				procGenBasicProcRead(devEUI, 0, 0x0b04)
-			}
+			timer := time.NewTimer(4 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenBasicProcRead(devEUI, 0, 0x0b04)
 		}()
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal1SceneSwitch005f0cf1,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal2SceneSwitch005f0cf3,
@@ -167,15 +165,12 @@ func genBasicProcConfigureReportingResponse(terminalInfo config.TerminalInfo, co
 
 //GenBasicProc 处理clusterID 0x0000即genBasic属性消息
 func GenBasicProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][GenBasicProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][GenBasicProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame.Command)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		genBasicProcProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		genBasicProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
+	case "ConfigureReportingResponse":
 		genBasicProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][GenBasicProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)

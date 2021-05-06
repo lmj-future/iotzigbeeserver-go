@@ -106,7 +106,7 @@ func (f *Configuration) Build() (*Frame, error) {
 	if f.CommandConfigured {
 		frame.Payload = bin.Encode(f.Command)
 	} else {
-		frame.Payload = make([]uint8, 0, 0)
+		frame.Payload = make([]uint8, 0)
 	}
 	return frame, nil
 }

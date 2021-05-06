@@ -17,10 +17,9 @@ func ZclMain(msgType string, terminalInfo config.TerminalInfo, data interface{},
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("ZclMain err : ", err)
+			globallogger.Log.Errorln("ZclMain err :", err)
 		}
 	}()
-	// globallogger.Log.Infof("[devEUI: %v[ZclMain]] data: %v", terminalInfo.DevEUI, data)
 	switch msgType {
 	case globalmsgtype.MsgType.UPMsg.ZigbeeDataUpEvent:
 		zclmsgup.ProcZclUpMsg(terminalInfo, data.(znp.AfIncomingMessage), msgID, contentData, zclAfIncomingMessage)

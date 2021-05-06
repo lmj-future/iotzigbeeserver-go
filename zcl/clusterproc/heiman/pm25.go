@@ -62,7 +62,7 @@ func pm25MeasurementProcAttribute(terminalInfo config.TerminalInfo, attributeNam
 	case "MaxMeasuredValue":
 	case "Tolerance":
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"pm25MeasurementProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "pm25MeasurementProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -89,15 +89,11 @@ func pm25MeasurementProcReport(terminalInfo config.TerminalInfo, command interfa
 
 // PM25MeasurementProc 处理clusterID 0x042a属性消息
 func PM25MeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][PM25MeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][PM25MeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		pm25MeasurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		pm25MeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][PM25MeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

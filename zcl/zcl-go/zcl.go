@@ -59,6 +59,12 @@ type Zcl struct {
 	library *cluster.Library
 }
 
+var Z = New()
+
+func ZCLObj() *Zcl {
+	return Z
+}
+
 // New New
 func New() *Zcl {
 	return &Zcl{cluster.New()}
@@ -100,20 +106,14 @@ func (z *Zcl) toZclCommand(clusterID uint16, f *frame.Frame) (interface{}, strin
 	var ok bool
 	switch f.FrameControl.FrameType {
 	case frame.FrameTypeGlobal:
-		// globallogger.Log.Infof("[toZclCommand][frame.FrameTypeGlobal] Frame: %+v", *f)
 		if cd, ok = z.library.Global()[f.CommandIdentifier]; !ok {
 			return nil, "", fmt.Errorf("unsupported global cmd identifier %d", f.CommandIdentifier)
 		}
-		// globallogger.Log.Infof("[toZclCommand][frame.FrameTypeGlobal] Frame: %+v", cd.Command)
-		cmd := cd.Command
-		copy := reflection.Copy(cmd)
-		// globallogger.Log.Infof("[toZclCommand][frame.FrameTypeGlobal] copy: %+v", copy)
+		copy := reflection.Copy(cd.Command)
 		bin.Decode(f.Payload, copy)
-		// globallogger.Log.Infof("[toZclCommand][frame.FrameTypeGlobal] copy: %+v", copy)
 		z.patchName(copy, clusterID, f.CommandIdentifier)
 		return copy, cd.Name, nil
 	case frame.FrameTypeLocal:
-		// globallogger.Log.Infof("[toZclCommand][frame.FrameTypeLocal]......")
 		var c *cluster.Cluster
 		if c, ok = z.library.Clusters()[cluster.ID(clusterID)]; !ok {
 			return nil, "", fmt.Errorf("unknown cluster %d", clusterID)
@@ -128,8 +128,7 @@ func (z *Zcl) toZclCommand(clusterID uint16, f *frame.Frame) (interface{}, strin
 		if cd, ok = commandDescriptors[f.CommandIdentifier]; !ok {
 			return nil, "", fmt.Errorf("cluster %d doesn't support this cmd %d", clusterID, f.CommandIdentifier)
 		}
-		cmd := cd.Command
-		copy := reflection.Copy(cmd)
+		copy := reflection.Copy(cd.Command)
 		bin.Decode(f.Payload, copy)
 		return copy, cd.Name, nil
 	}
@@ -142,8 +141,6 @@ func (z *Zcl) patchName(cmd interface{}, clusterID uint16, commandID uint8) {
 		for _, v := range cmd.ReadAttributeStatuses {
 			v.AttributeName = z.getAttributeName(clusterID, v.AttributeID)
 		}
-		// globallogger.Log.Infof("llllll%+v", cmd.ReadAttributeStatuses[0])
-		// globallogger.Log.Infof("llllll%+v", cmd.ReadAttributeStatuses[0].Attribute)
 	case *cluster.WriteAttributesCommand:
 		for _, v := range cmd.WriteAttributeRecords {
 			v.AttributeName = z.getAttributeName(clusterID, v.AttributeID)
@@ -180,8 +177,6 @@ func (z *Zcl) patchName(cmd interface{}, clusterID uint16, commandID uint8) {
 		for _, v := range cmd.AttributeReports {
 			v.AttributeName = z.getAttributeName(clusterID, v.AttributeID)
 		}
-		// globallogger.Log.Infof("llllll%+v", cmd.AttributeReports[0])
-		// globallogger.Log.Infof("llllll%+v", cmd.AttributeReports[0].Attribute)
 	case *cluster.DiscoverAttributesResponse:
 		for _, v := range cmd.AttributeInformations {
 			v.AttributeName = z.getAttributeName(clusterID, v.AttributeID)
@@ -251,10 +246,7 @@ func (z *Zcl) EncFrameConfigurationToHexString(frameConfiguration frame.Configur
 	if transactionID != 0 {
 		frameConfig.TransactionSequenceNumber = transactionID
 	}
-	// globallogger.Log.Infof("[EncFrameConfigurationToHexString]: frameConfig.FrameControl: %+v", frameConfig.FrameControl)
-	// globallogger.Log.Infof("[EncFrameConfigurationToHexString]: frameConfig: %+v", frameConfig)
 	frameBuf := frame.Encode(frameConfig)
-	// globallogger.Log.Infof("[EncFrameConfigurationToHexString]: frameBuf: %+v", frameBuf)
 	return hex.EncodeToString(frameBuf), frameConfig.TransactionSequenceNumber
 }
 

@@ -182,8 +182,6 @@ func genAlarmsProcAlarm(terminalInfo config.TerminalInfo, command interface{}) {
 
 // GenAlarmsProc 处理clusterID 0x0009即genAlarms属性消息
 func GenAlarmsProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][GenAlarmsProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][GenAlarmsProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame.Command)
 	switch zclFrame.CommandName {
 	case "Alarm":
 		genAlarmsProcAlarm(terminalInfo, zclFrame.Command)

@@ -43,7 +43,7 @@ type iotwareConnect struct {
 
 // StateTerminalOnlineIotware StateTerminalOnlineIotware
 func StateTerminalOnlineIotware(terminalInfo config.TerminalInfo) {
-	mqttMsg := iotwareConnect{
+	jsonMsg, err := json.Marshal(iotwareConnect{
 		Device: terminalInfo.DevEUI,
 		Type:   terminalInfo.ManufacturerName + "-" + terminalInfo.TmnType,
 		Gateway: gateway{
@@ -52,8 +52,7 @@ func StateTerminalOnlineIotware(terminalInfo config.TerminalInfo) {
 			ThirdAddr:  terminalInfo.ThirdAddr,
 			PortID:     terminalInfo.ModuleID,
 		},
-	}
-	jsonMsg, err := json.Marshal(mqttMsg)
+	})
 	if err != nil {
 		globallogger.Log.Errorf("[StateTerminalOnlineIotware]: JSON marshaling failed: %s", err)
 	}
@@ -62,7 +61,7 @@ func StateTerminalOnlineIotware(terminalInfo config.TerminalInfo) {
 
 // StateTerminalOfflineIotware StateTerminalOfflineIotware
 func StateTerminalOfflineIotware(terminalInfo config.TerminalInfo) {
-	mqttMsg := iotwareConnect{
+	jsonMsg, err := json.Marshal(iotwareConnect{
 		Device: terminalInfo.DevEUI,
 		Type:   terminalInfo.ManufacturerName + "-" + terminalInfo.TmnType,
 		Gateway: gateway{
@@ -71,8 +70,7 @@ func StateTerminalOfflineIotware(terminalInfo config.TerminalInfo) {
 			ThirdAddr:  terminalInfo.ThirdAddr,
 			PortID:     terminalInfo.ModuleID,
 		},
-	}
-	jsonMsg, err := json.Marshal(mqttMsg)
+	})
 	if err != nil {
 		globallogger.Log.Errorf("[StateTerminalOfflineIotware]: JSON marshaling failed: %s", err)
 	}
@@ -81,7 +79,7 @@ func StateTerminalOfflineIotware(terminalInfo config.TerminalInfo) {
 
 // StateTerminalLeaveIotware StateTerminalLeaveIotware
 func StateTerminalLeaveIotware(terminalInfo config.TerminalInfo) {
-	mqttMsg := iotwareConnect{
+	jsonMsg, err := json.Marshal(iotwareConnect{
 		Device: terminalInfo.DevEUI,
 		Type:   terminalInfo.ManufacturerName + "-" + terminalInfo.TmnType,
 		Gateway: gateway{
@@ -90,8 +88,7 @@ func StateTerminalLeaveIotware(terminalInfo config.TerminalInfo) {
 			ThirdAddr:  terminalInfo.ThirdAddr,
 			PortID:     terminalInfo.ModuleID,
 		},
-	}
-	jsonMsg, err := json.Marshal(mqttMsg)
+	})
 	if err != nil {
 		globallogger.Log.Errorf("[StateTerminalLeaveIotware]: JSON marshaling failed: %s", err)
 	}

@@ -62,7 +62,7 @@ func procGetTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("procGetTerminalList err : ", err)
+			globallogger.Log.Errorln("procGetTerminalList err :", err)
 		}
 	}()
 	var resultMessage ResultMessage = ResultMessage{
@@ -148,7 +148,7 @@ func procGetTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 		terminalList, err = models.FindTerminalListByCondition(oMatch, field)
 	}
 	if err != nil {
-		globallogger.Log.Errorln("[HTTP][GET][/iot/iotzigbeeserver/terminalList] proc FindTerminalListByCondition err : ", err)
+		globallogger.Log.Errorln("[HTTP][GET][/iot/iotzigbeeserver/terminalList] proc FindTerminalListByCondition err :", err)
 		resultMessage.Code = 404
 		resultMessage.Message = err.Error()
 	} else {
@@ -165,7 +165,7 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("procPostTerminalList err : ", err)
+			globallogger.Log.Errorln("procPostTerminalList err :", err)
 		}
 	}()
 	var resultMessage ResultMessage = ResultMessage{
@@ -191,32 +191,30 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 	}
 	ticker := time.NewTicker(time.Millisecond * 500)
 	for index := 0; index < 5; index++ {
-		select {
-		case <-ticker.C:
-			for _, devEUI := range reqBodyJSONData {
-				var terminalInfo *config.TerminalInfo
-				var err error
-				if constant.Constant.UsePostgres {
-					terminalInfo, err = models.GetTerminalInfoByDevEUIPG(devEUI)
-				} else {
-					terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
-				}
-				if err != nil {
-					break
-				}
-				if terminalInfo == nil {
-					resultMessage.Code = 1
-					resultMessage.Message = "设备[" + devEUI + "]加入失败"
-					break
-				}
-				if !terminalInfo.IsExist {
-					resultMessage.Code = 2
-					resultMessage.Message = "设备[" + devEUI + "]加入失败"
-					break
-				} else {
-					resultMessage.Code = 0
-					resultMessage.Message = "success"
-				}
+		<-ticker.C
+		for _, devEUI := range reqBodyJSONData {
+			var terminalInfo *config.TerminalInfo
+			var err error
+			if constant.Constant.UsePostgres {
+				terminalInfo, err = models.GetTerminalInfoByDevEUIPG(devEUI)
+			} else {
+				terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
+			}
+			if err != nil {
+				break
+			}
+			if terminalInfo == nil {
+				resultMessage.Code = 1
+				resultMessage.Message = "设备[" + devEUI + "]加入失败"
+				break
+			}
+			if !terminalInfo.IsExist {
+				resultMessage.Code = 2
+				resultMessage.Message = "设备[" + devEUI + "]加入失败"
+				break
+			} else {
+				resultMessage.Code = 0
+				resultMessage.Message = "success"
 			}
 		}
 		if err != nil {
@@ -228,6 +226,9 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 			break
 		}
 	}
+	if resultMessage.Code == 2 {
+		resultMessage.Code = 1
+	}
 	jsonData, err := json.Marshal(resultMessage)
 	if err != nil {
 		return []byte(err.Error()), nil
@@ -238,7 +239,7 @@ func procDeleteTerminalList(params http.Params, reqBody []byte) ([]byte, error) 
 	defer func() {
 		err := recover()
 		if err != nil {
-			globallogger.Log.Errorln("procDeleteTerminalList err : ", err)
+			globallogger.Log.Errorln("procDeleteTerminalList err :", err)
 		}
 	}()
 	var resultMessage ResultMessage = ResultMessage{
@@ -269,6 +270,16 @@ func procTestTerminalDelete(params http.Params, reqBody []byte) ([]byte, error) 
 	if jsonData.DevEUI == "" {
 		return []byte("Body params is invalid, please check!"), nil
 	}
+	var terminalInfo *config.TerminalInfo
+	if constant.Constant.UsePostgres {
+		terminalInfo, _ = models.GetTerminalInfoByDevEUIPG(jsonData.DevEUI)
+	} else {
+		terminalInfo, _ = models.GetTerminalInfoByDevEUI(jsonData.DevEUI)
+	}
+	if terminalInfo != nil {
+		var key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.NwkAddr
+		publicfunction.DeleteTerminalInfoListCache(key)
+	}
 	if constant.Constant.UsePostgres {
 		err = models.DeleteTerminalPG(jsonData.DevEUI)
 	} else {
@@ -295,8 +306,11 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 		NwkAddr:      jsonData.NwkAddr,
 		TmnType:      jsonData.TmnType,
 		ACMac:        jsonData.ACMac,
+		FirstAddr:    publicfunction.Transport16StringToString(jsonData.ACMac),
 		APMac:        jsonData.APMac,
+		SecondAddr:   publicfunction.Transport16StringToString(jsonData.APMac),
 		T300ID:       jsonData.T300ID,
+		ThirdAddr:    jsonData.T300ID,
 		ModuleID:     jsonData.ModuleID,
 		ProfileID:    "ZHA",
 		Online:       true,
@@ -629,31 +643,30 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	iotsmartspace.ActionInsertReplyTest(terminalInfo)
+	if constant.Constant.Iotware {
+		iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
+	} else if constant.Constant.Iotedge {
+		iotsmartspace.ActionInsertReplyTest(terminalInfo)
+	}
 	return []byte("success"), nil
 }
-
-// func procTestTerminalDelete(params http.Params, reqBody []byte) ([]byte, error) {
-// }
 
 // heimanIRControlEMSendKeyCommand 处理clusterID 0xfc82
 func heimanIRControlEMSendKeyCommand(devEUI string, ID string, KeyCode string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMSendKeyCommand] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.SendKeyCommand,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 
 // heimanIRControlEMStudyKey 处理clusterID 0xfc82
@@ -661,19 +674,17 @@ func heimanIRControlEMStudyKey(devEUI string, ID string, KeyCode string, msgID i
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMStudyKey] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.StudyKey,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 
 // heimanIRControlEMDeleteKey 处理clusterID 0xfc82
@@ -681,52 +692,45 @@ func heimanIRControlEMDeleteKey(devEUI string, ID string, KeyCode string, msgID 
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMDeleteKey] ID: %s, KeyCode: %s", devEUI, ID, KeyCode)
 	id, _ := strconv.Atoi(ID)
 	keyCode, _ := strconv.Atoi(KeyCode)
-	cmd := common.Command{
-		InfraredRemoteID:      uint8(id),
-		InfraredRemoteKeyCode: uint8(keyCode),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.DeleteKey,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteID:      uint8(id),
+			InfraredRemoteKeyCode: uint8(keyCode),
+		},
+		MsgID: msgID,
+	})
 }
 
 // heimanIRControlEMCreateID 处理clusterID 0xfc82
 func heimanIRControlEMCreateID(devEUI string, ModelType string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMCreateID] ModelType: %s", devEUI, ModelType)
 	modelType, _ := strconv.Atoi(ModelType)
-	cmd := common.Command{
-		InfraredRemoteModelType: uint8(modelType),
-	}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.CreateID,
 		ClusterID:   0xfc82,
-		Command:     cmd,
-		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+		Command: common.Command{
+			InfraredRemoteModelType: uint8(modelType),
+		},
+		MsgID: msgID,
+	})
 }
 
 // heimanIRControlEMGetIDAndKeyCodeList 处理clusterID 0xfc82
 func heimanIRControlEMGetIDAndKeyCodeList(devEUI string, msgID interface{}) {
 	globallogger.Log.Infof("[devEUI: %v][heimanIRControlEMGetIDAndKeyCodeList]", devEUI)
-	cmd := common.Command{}
-	zclDownMsg := common.ZclDownMsg{
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
 		DevEUI:      devEUI,
 		CommandType: common.GetIDAndKeyCodeList,
 		ClusterID:   0xfc82,
-		Command:     cmd,
 		MsgID:       msgID,
-	}
-	zclmsgdown.ProcZclDownMsg(zclDownMsg)
+	})
 }
 
 // NewServer NewServer
@@ -784,6 +788,10 @@ func NewServer() {
 	s.Handle(func(params http.Params, reqBody []byte) ([]byte, error) {
 		return procTestTerminalJoin(params, reqBody)
 	}, "POST", "/h3c-zigbeeserver/test/terminalJoin")
+	s.Handle(func(params http.Params, reqBody []byte) ([]byte, error) {
+		return procTestTerminalJoin(params, reqBody)
+	}, "POST", "/iot/iotzigbeeserver/test/terminalJoin")
+	s.HandlePrometheus("GET", "/iot/iotzigbeeserver/prometheus")
 
 	s.Start()
 	wait()
@@ -791,11 +799,9 @@ func NewServer() {
 
 // wait wait
 func wait() error {
-	sig := make(chan os.Signal)
+	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
-	select {
-	case <-sig:
-	}
+	<-sig
 	return nil
 }

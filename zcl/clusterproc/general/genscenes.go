@@ -30,7 +30,7 @@ func genScenesProcReadRsp(terminalInfo config.TerminalInfo, command interface{})
 			case "LastConfiguredBy":
 				globallogger.Log.Infof("[devEUI: %v][genScenesProcReadRsp]: LastConfiguredBy:  %v", terminalInfo.DevEUI, v.Attribute.Value)
 			default:
-				globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"genScenesProcReadRsp unknow attributeName", v.AttributeName)
+				globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "genScenesProcReadRsp unknow attributeName", v.AttributeName)
 			}
 		} else {
 			globallogger.Log.Infof("[devEUI: %v][genScenesProcReadRsp]: read rsp failed: status %v", terminalInfo.DevEUI, v.Status)
@@ -327,17 +327,13 @@ func genScenesProcCopySceneResponse(terminalInfo config.TerminalInfo, command in
 
 //GenScenesProc 处理clusterID 0x0005即genScenes属性消息
 func GenScenesProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame, msgID interface{}, contentFrame *zcl.Frame, dataTemp string) {
-	// globallogger.Log.Infof("[devEUI: %v][GenScenesProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][GenScenesProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame.Command)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		genScenesProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		genScenesProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandDefaultResponse)].Name:
+	case "DefaultResponse":
 		genScenesProcDefaultResponse(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
 	case "AddSceneResponse":
 		genScenesProcAddSceneResponse(terminalInfo, zclFrame.Command, msgID, contentFrame, dataTemp)
 	case "ViewSceneResponse":

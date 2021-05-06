@@ -11,8 +11,8 @@ import (
 
 //创建全局mqtt publish消息处理 handler
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	globallogger.Log.Warnf("Pub Client Topic : %s ", msg.Topic())
-	globallogger.Log.Warnf("Pub Client msg : %s ", msg.Payload())
+	globallogger.Log.Warnf("Pub Client Topic : %s", msg.Topic())
+	globallogger.Log.Warnf("Pub Client msg : %s", msg.Payload())
 }
 
 //创建全局mqtt sub消息处理 handler
@@ -23,25 +23,29 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 
 var client mqtt.Client
 var taskID = "h3c-zigbeeserver"
+var connectting = false
+var connectFlag = false
 
-func keepAlive(mqttHost string, mqttPort string, mqttUserName string, mqttPassword string) {
-	timer := time.NewTimer(time.Minute)
-	select {
-	case <-timer.C:
-		if client.IsConnected() {
-			globallogger.Log.Warnf("[MQTT][KeepAlive] Ping success")
-			keepAlive(mqttHost, mqttPort, mqttUserName, mqttPassword)
+func connect(clientOptions *mqtt.ClientOptions) error {
+	//创建客户端连接
+	client = mqtt.NewClient(clientOptions)
+	//客户端连接判断
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		globallogger.Log.Errorf("[MQTT] mqtt connect error, taskID: %s, error: %s", taskID, token.Error())
+		return token.Error()
+	} else {
+		globallogger.Log.Infof("[MQTT] connect success %+v, %+v", token, clientOptions)
+		return nil
+	}
+}
+func connectLoop(clientOptions *mqtt.ClientOptions) {
+	for {
+		if err := connect(clientOptions); err != nil {
+			time.Sleep(time.Second * 2)
 		} else {
-			ConnectMQTT(mqttHost, mqttPort, mqttUserName, mqttPassword)
-			//客户端连接判断
-			if token := client.Connect(); !token.WaitTimeout(time.Duration(5)*time.Second) && token.Wait() && token.Error() != nil {
-				globallogger.Log.Errorf("[MQTT][KeepAlive] mqtt connect error, taskID: %s, error: %s ", taskID, token.Error())
-				//客户端重连
-				ConnectMQTT(mqttHost, mqttPort, mqttUserName, mqttPassword)
-			} else {
-				globallogger.Log.Infof("[MQTT][KeepAlive] connect success %+v, %+v, %+v, %+v, %+v", token, mqttHost, mqttPort, mqttUserName, mqttPassword)
-				keepAlive(mqttHost, mqttPort, mqttUserName, mqttPassword)
-			}
+			connectFlag = true
+			connectting = false
+			break
 		}
 	}
 }
@@ -54,37 +58,42 @@ func ConnectMQTT(mqttHost string, mqttPort string, mqttUserName string, mqttPass
 	clientOptions.SetClientID(fmt.Sprintf("%s-%d", taskID, rand.Int()))
 	//设置handler
 	clientOptions.SetDefaultPublishHandler(messagePubHandler)
-	//设置连接超时
-	clientOptions.SetConnectTimeout(time.Duration(5) * time.Second)
 	//设置保活时长
-	// clientOptions.SetKeepAlive(60 * time.Second)
-	//创建客户端连接
-	client = mqtt.NewClient(clientOptions)
-	//客户端连接判断
-	if token := client.Connect(); !token.WaitTimeout(time.Duration(5)*time.Second) && token.Wait() && token.Error() != nil {
-		globallogger.Log.Errorf("[MQTT] mqtt connect error, taskID: %s, error: %s ", taskID, token.Error())
-		//客户端重连
-		ConnectMQTT(mqttHost, mqttPort, mqttUserName, mqttPassword)
-	} else {
-		globallogger.Log.Infof("[MQTT] connect success %+v, %+v, %+v, %+v, %+v", token, mqttHost, mqttPort, mqttUserName, mqttPassword)
-		// keepAlive(mqttHost, mqttPort, mqttUserName, mqttPassword)
-	}
+	clientOptions.SetKeepAlive(30 * time.Second)
+	clientOptions.SetAutoReconnect(true)
+	clientOptions.SetMaxReconnectInterval(time.Minute)
+	connectting = true
+	connectLoop(clientOptions)
+	go func() {
+		for {
+			if !connectting && !client.IsConnectionOpen() {
+				connectting = true
+				client.Disconnect(250)
+				connectLoop(clientOptions)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 // Publish Publish
 func Publish(topic string, msg string) {
 	//发布消息
 	client.Publish(topic, 1, false, msg)
-	// globallogger.Log.Warnf("[Pub] end publish msg to mqtt broker, taskID: %s, token : %s ", taskID, token)
-	// token.Wait()
 }
 
 // Subscribe Subscribe
 func Subscribe(topic string, cb func(topic string, msg []byte)) {
 	client.Subscribe(topic, 1, func(client mqtt.Client, msg mqtt.Message) {
-		globallogger.Log.Warnf("Sub Client Topic : %s, msg : %s ", msg.Topic(), msg.Payload())
+		globallogger.Log.Warnf("Sub Client Topic : %s, msg : %s", msg.Topic(), msg.Payload())
 		go cb(msg.Topic(), msg.Payload())
 	})
-	// fmt.Printf("[Pub] end Subscribe msg from mqtt broker, taskID: %s, token : %s ", taskID, token)
-	// token.Wait()
+}
+
+func GetConnectFlag() bool {
+	return connectFlag
+}
+
+func SetConnectFlag(flag bool) {
+	connectFlag = flag
 }

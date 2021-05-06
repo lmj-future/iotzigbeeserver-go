@@ -32,8 +32,6 @@ func iasWarningDeviceProcDefaultResponse(terminalInfo config.TerminalInfo, comma
 
 // IASWarningDeviceProc 处理clusterID 0x0502即IASWarningDevice属性消息
 func IASWarningDeviceProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame, msgID interface{}) {
-	// globallogger.Log.Infof("[devEUI: %v][IASWarningDeviceProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][IASWarningDeviceProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame.Command)
 	switch zclFrame.CommandName {
 	case "DefaultResponse":
 		iasWarningDeviceProcDefaultResponse(terminalInfo, zclFrame.Command, msgID)

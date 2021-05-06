@@ -16,10 +16,8 @@ import (
 // ClusterProc 处理general clusterID属性消息
 func ClusterProc(terminalInfo config.TerminalInfo, srcEndpoint uint8, zclFrame *zcl.Frame, clusterIDByStr string, msgID interface{},
 	contentFrame *zcl.Frame, dataTemp string) {
-	// globallogger.Log.Infof("[devEUI: %v][ClusterProc] Start......", terminalInfo.DevEUI)
-	globallogger.Log.Infof("[devEUI: %v][ClusterProc] zclFrame: FrameControl[%+v] ManufacturerCode[%+v] TransactionSequenceNumber[%+v] "+
-		"CommandIdentifier[%+v] CommandName[%+v] Command[%+v]", terminalInfo.DevEUI, zclFrame.FrameControl, zclFrame.ManufacturerCode,
-		zclFrame.TransactionSequenceNumber, zclFrame.CommandIdentifier, zclFrame.CommandName, zclFrame.Command)
+	globallogger.Log.Infof("[devEUI: %v][ClusterProc] zclFrame: FrameControl[%+v] ManufacturerCode[%+v] TransactionSequenceNumber[%+v] CommandIdentifier[%+v] CommandName[%+v] Command[%+v]",
+		terminalInfo.DevEUI, zclFrame.FrameControl, zclFrame.ManufacturerCode, zclFrame.TransactionSequenceNumber, zclFrame.CommandIdentifier, zclFrame.CommandName, zclFrame.Command)
 	switch clusterIDByStr {
 	case "Basic":
 		// 处理genBasic消息,0x0000

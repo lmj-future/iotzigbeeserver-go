@@ -210,16 +210,10 @@ func electricalMeasurementProcReport(terminalInfo config.TerminalInfo, command i
 			// globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcReadAttributesResponse]: %s: %+v", terminalInfo.DevEUI, attributeName, attribute.Value)
 		case "RMSVoltage":
 			RMSVoltage = v.Attribute.Value.(uint64)
-			type appDataMsg struct {
-				Voltage string `json:"voltage"`
-			}
 		case "ACVoltageDivisor":
 			ACVoltageDivisor = v.Attribute.Value.(uint64)
 		case "RMSCurrent":
 			RMSCurrent = v.Attribute.Value.(uint64)
-			type appDataMsg struct {
-				Current string `json:"current"`
-			}
 		case "ACCurrentDivisor":
 			ACCurrentDivisor = v.Attribute.Value.(uint64)
 		case "ActivePower":
@@ -247,9 +241,7 @@ func electricalMeasurementProcReport(terminalInfo config.TerminalInfo, command i
 // electricalMeasurementProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
 func electricalMeasurementProcConfigureReportingResponse(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ConfigureReportingResponse)
-	// globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcConfigureReportingResponse]: command: %+v", terminalInfo.DevEUI, Command)
 	for _, v := range Command.AttributeStatusRecords {
-		// globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcConfigureReportingResponse]: AttributeStatusRecord: %+v", terminalInfo.DevEUI, v)
 		if v.Status != cluster.ZclStatusSuccess {
 			globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
 		}
@@ -258,17 +250,13 @@ func electricalMeasurementProcConfigureReportingResponse(terminalInfo config.Ter
 
 // ElectricalMeasurementProc 处理clusterID 0x0b04属性消息
 func ElectricalMeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][ElectricalMeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][ElectricalMeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		electricalMeasurementProcReadAttributesResponse(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
-		electricalMeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReporting)].Name:
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
+	case "ConfigureReportingResponse":
 		electricalMeasurementProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
+	case "ReportAttributes":
+		electricalMeasurementProcReport(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][ElectricalMeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

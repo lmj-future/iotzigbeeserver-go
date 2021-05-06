@@ -71,7 +71,7 @@ func relativeHumidityMeasurementProcAttribute(terminalInfo config.TerminalInfo, 
 	case "MaxMeasuredValue":
 	case "Tolerance":
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"relativeHumidityMeasurementProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "relativeHumidityMeasurementProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -98,16 +98,15 @@ func relativeHumidityMeasurementProcReport(terminalInfo config.TerminalInfo, com
 
 // RelativeHumidityMeasurementProc 处理clusterID 0x0405属性消息
 func RelativeHumidityMeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][RelativeHumidityMeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][RelativeHumidityMeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		relativeHumidityMeasurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ConfigureReportingResponse":
+		if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM {
+			iotsmartspace.ProcHEIMANHTEM(terminalInfo, 4)
+		}
+	case "ReportAttributes":
 		relativeHumidityMeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReporting)].Name:
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][RelativeHumidityMeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

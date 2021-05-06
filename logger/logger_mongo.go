@@ -39,9 +39,10 @@ func NewMongoLogger(c Config, fields ...string) (Logger, error) {
 	logLevel, err := logrus.ParseLevel(c.Level)
 	if err != nil {
 		log.Printf("failed to parse log level (%s), use default level (info)\n", c.Level)
-		logLevel = logrus.InfoLevel
+		mgo.level = logrus.InfoLevel
+	} else {
+		mgo.level = logLevel
 	}
-	mgo.level = logLevel
 	logrusFields := logrus.Fields{}
 	for index := 0; index < len(fields)-1; index = index + 2 {
 		logrusFields[fields[index]] = fields[index+1]
@@ -49,7 +50,10 @@ func NewMongoLogger(c Config, fields ...string) (Logger, error) {
 
 	// 根据时间逆序对系统日志创建索引
 	indexOpts := options.CreateIndexes().SetMaxTime(60 * time.Second)
-	indexView := mgo.collection.Indexes()
+	var indexView mongo.IndexView
+	if mgo.collection != nil {
+		indexView = mgo.collection.Indexes()
+	}
 	result, err := indexView.CreateOne(
 		context.Background(),
 		mongo.IndexModel{
@@ -63,7 +67,9 @@ func NewMongoLogger(c Config, fields ...string) (Logger, error) {
 	}
 	// 根据时间顺序对系统日志创建索引
 	indexOpts = options.CreateIndexes().SetMaxTime(60 * time.Second)
-	indexView = mgo.collection.Indexes()
+	if mgo.collection != nil {
+		indexView = mgo.collection.Indexes()
+	}
 	result, err = indexView.CreateOne(
 		context.Background(),
 		mongo.IndexModel{

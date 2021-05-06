@@ -16,7 +16,6 @@ import (
 
 // procZclMsgDown 下行公共封装接口
 func procZclMsgDown(zclDownMsg common.ZclDownMsg, frameHexString string, transactionID uint8) {
-	// globallogger.Log.Infof("[devEUI: %v][procZclMsgDown] frameHexString: %v transactionID: %v", zclDownMsg.DevEUI, frameHexString, transactionID)
 	downMsg := common.DownMsg{
 		ProfileID:        0x0104,
 		ClusterID:        zclDownMsg.ClusterID,
@@ -61,21 +60,18 @@ func procReadAttribute(zclDownMsg common.ZclDownMsg) {
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][procReadAttribute] invalid clusterID : %+v", zclDownMsg.DevEUI, cluster.ID(zclDownMsg.ClusterID))
 	}
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: attributes,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: attributes,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -89,21 +85,18 @@ func procHonyarSocketRead(zclDownMsg common.ZclDownMsg) {
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][procHonyarSocketRead] invalid clusterID : %+v", zclDownMsg.DevEUI, cluster.ID(zclDownMsg.ClusterID))
 	}
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: attributes,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: attributes,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -117,21 +110,18 @@ func procHonyarSocketReadUSB(zclDownMsg common.ZclDownMsg) {
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][procHonyarSocketReadUSB] invalid clusterID : %+v", zclDownMsg.DevEUI, cluster.ID(zclDownMsg.ClusterID))
 	}
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: attributes,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: attributes,
+		},
+		CommandConfigured: true,
+	}, 0)
 	zclDownMsg.Command.DstEndpointIndex = 1
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
@@ -139,36 +129,33 @@ func procHonyarSocketReadUSB(zclDownMsg common.ZclDownMsg) {
 // procReadBasic 处理command read basic下行命令
 func procReadBasic(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procReadBasic] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: []uint16{
-			0x0000, //ZLibraryVersion
-			0x0001, //ApplicationVersion
-			0x0002, //StackVersion
-			0x0003, //HWVersion
-			0x0004, //ManufacturerName
-			0x0005, //ModelIdentifier
-			0x0006, //DateCode
-			0x0007, //PowerSource
-			// 0x0010, //LocationDescription
-			// 0x0011, //PhysicalEnvironment
-			// 0x0012, //DeviceEnabled
-			// 0x0013, //AlarmMask
-			// 0x0014, //DisableLocalConfig
-			// 0x4000, //SWBuildID
-		},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: []uint16{
+				0x0000, //ZLibraryVersion
+				0x0001, //ApplicationVersion
+				0x0002, //StackVersion
+				0x0003, //HWVersion
+				0x0004, //ManufacturerName
+				0x0005, //ModelIdentifier
+				0x0006, //DateCode
+				0x0007, //PowerSource
+				// 0x0010, //LocationDescription
+				// 0x0011, //PhysicalEnvironment
+				// 0x0012, //DeviceEnabled
+				// 0x0013, //AlarmMask
+				// 0x0014, //DisableLocalConfig
+				// 0x4000, //SWBuildID
+			},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -181,7 +168,7 @@ func procSwitchCommand(zclDownMsg common.ZclDownMsg) {
 	} else {
 		command = cluster.OnCommand{}
 	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
@@ -190,30 +177,25 @@ func procSwitchCommand(zclDownMsg common.ZclDownMsg) {
 		CommandIDConfigured: true,
 		Command:             command,
 		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procGetSwitchState 处理command read下行命令
 func procGetSwitchState(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procGetSwitchState] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: []uint16{0x0000},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: []uint16{0x0000},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -226,7 +208,7 @@ func procSocketCommand(zclDownMsg common.ZclDownMsg) {
 	} else {
 		command = cluster.OnCommand{}
 	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
@@ -235,113 +217,98 @@ func procSocketCommand(zclDownMsg common.ZclDownMsg) {
 		CommandIDConfigured: true,
 		Command:             command,
 		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procGetSocketState 处理command read下行命令
 func procGetSocketState(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procGetSocketState] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.ReadAttributesCommand{
-		AttributeIDs: []uint16{0x0000},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ReadAttributesCommand{
+			AttributeIDs: []uint16{0x0000},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procHonyarSocketWriteReq 处理Honyar command write下行命令
 func procHonyarSocketWriteReq(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procHonyarSocketWriteReq] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.WriteAttributesCommand{
-		WriteAttributeRecords: []*cluster.WriteAttributeRecord{
-			{
-				AttributeName: zclDownMsg.Command.AttributeName,
-				AttributeID:   zclDownMsg.Command.AttributeID,
-				Attribute: &cluster.Attribute{
-					DataType: cluster.ZclDataTypeBoolean,
-					Value:    zclDownMsg.Command.Value,
-				},
-			},
-		},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x02,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.WriteAttributesCommand{
+			WriteAttributeRecords: []*cluster.WriteAttributeRecord{
+				{
+					AttributeName: zclDownMsg.Command.AttributeName,
+					AttributeID:   zclDownMsg.Command.AttributeID,
+					Attribute: &cluster.Attribute{
+						DataType: cluster.ZclDataTypeBoolean,
+						Value:    zclDownMsg.Command.Value,
+					},
+				},
+			},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procSensorWriteReq 处理command received ZoneEnrollResponse下行命令
 func procSensorWriteReq(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procSensorWriteReq] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	T300ID := zclDownMsg.T300ID
-	command := cluster.WriteAttributesCommand{
-		WriteAttributeRecords: []*cluster.WriteAttributeRecord{
-			{
-				AttributeName: "IAS_CIE_Address",
-				AttributeID:   0x0010,
-				Attribute: &cluster.Attribute{
-					DataType: cluster.ZclDataTypeIeeeAddr,
-					Value:    "0x" + T300ID,
-				},
-			},
-		},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x02,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.WriteAttributesCommand{
+			WriteAttributeRecords: []*cluster.WriteAttributeRecord{
+				{
+					AttributeName: "IAS_CIE_Address",
+					AttributeID:   0x0010,
+					Attribute: &cluster.Attribute{
+						DataType: cluster.ZclDataTypeIeeeAddr,
+						Value:    "0x" + zclDownMsg.T300ID,
+					},
+				},
+			},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procSensorEnrollRsp 处理command received ZoneEnrollResponse下行命令
 func procSensorEnrollRsp(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procSensorEnrollRsp] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.ZoneEnrollResponse{
-		ResponseCode: 0x00,
-		ZoneID:       0x01,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ZoneEnrollResponse{
+			ResponseCode: 0x00,
+			ZoneID:       0x01,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -427,7 +394,7 @@ func procIntervalCommand(zclDownMsg common.ZclDownMsg) {
 		}
 	}
 	command.AttributeReportingConfigurationRecords = attributeReportingConfigurationRecords
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
@@ -436,9 +403,7 @@ func procIntervalCommand(zclDownMsg common.ZclDownMsg) {
 		CommandIDConfigured: true,
 		Command:             command,
 		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+	}, 0)
 	// if zclDownMsg.ClusterID == 0x0702 {
 	// 	frameHexString = frameHexString[:6] + "00000025ac0d1b0e0100000000000000042a0200481c0f0000"
 	// }
@@ -573,8 +538,7 @@ func procSetThreshold(zclDownMsg common.ZclDownMsg) {
 		globallogger.Log.Warnf("[devEUI: %v][procSetThreshold] invalid clusterID: %+v", zclDownMsg.DevEUI, zclDownMsg.ClusterID)
 		return
 	}
-
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
@@ -583,44 +547,35 @@ func procSetThreshold(zclDownMsg common.ZclDownMsg) {
 		CommandIDConfigured: true,
 		Command:             command,
 		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procStartWarning 处理command StartWarning下行命令
 func procStartWarning(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procStartWarning] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.StartWarning{
-		WarningControl:  zclDownMsg.Command.WarningControl,
-		WarningDuration: zclDownMsg.Command.WarningTime,
-		StrobeDutyCycle: 0x28,
-		StrobeLevel:     0x01,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.StartWarning{
+			WarningControl:  zclDownMsg.Command.WarningControl,
+			WarningDuration: zclDownMsg.Command.WarningTime,
+			StrobeDutyCycle: 0x28,
+			StrobeLevel:     0x01,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procHeimanScenesDefaultResponse 处理heiman command 0xfc80下行命令
 func procHeimanScenesDefaultResponse(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procHeimanScenesDefaultResponse] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.DefaultResponseCommand{
-		CommandID: zclDownMsg.Command.Cmd,
-		Status:    cluster.ZclStatusSuccess,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:                  frame.FrameTypeGlobal,
 		FrameTypeConfigured:        true,
 		ManufacturerCode:           0x120b,
@@ -629,36 +584,34 @@ func procHeimanScenesDefaultResponse(zclDownMsg common.ZclDownMsg) {
 		DirectionConfigured:        true,
 		CommandID:                  0x0b,
 		CommandIDConfigured:        true,
-		Command:                    command,
-		CommandConfigured:          true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, zclDownMsg.Command.TransactionID)
+		Command: cluster.DefaultResponseCommand{
+			CommandID: zclDownMsg.Command.Cmd,
+			Status:    cluster.ZclStatusSuccess,
+		},
+		CommandConfigured: true,
+	}, zclDownMsg.Command.TransactionID)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procAddScene 处理command AddScene下行命令
 func procAddScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procAddScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.AddSceneCommand{
-		GroupID:        zclDownMsg.Command.GroupID,
-		SceneID:        zclDownMsg.Command.SceneID,
-		TransitionTime: zclDownMsg.Command.TransitionTime,
-		SceneName:      zclDownMsg.Command.SceneName,
-		KeyID:          zclDownMsg.Command.KeyID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.AddSceneCommand{
+			GroupID:        zclDownMsg.Command.GroupID,
+			SceneID:        zclDownMsg.Command.SceneID,
+			TransitionTime: zclDownMsg.Command.TransitionTime,
+			SceneName:      zclDownMsg.Command.SceneName,
+			KeyID:          zclDownMsg.Command.KeyID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	tempBuf, _ := hex.DecodeString(frameHexString[16 : len(frameHexString)-2])
 	tempString := ""
 	for _, v := range tempBuf {
@@ -672,307 +625,265 @@ func procAddScene(zclDownMsg common.ZclDownMsg) {
 // procViewScene 处理command ViewScene下行命令
 func procViewScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procViewScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.ViewSceneCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-		SceneID: zclDownMsg.Command.SceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x01,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.ViewSceneCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+			SceneID: zclDownMsg.Command.SceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procRemoveScene 处理command RemoveScene下行命令
 func procRemoveScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procRemoveScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.RemoveSceneCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-		SceneID: zclDownMsg.Command.SceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x02,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.RemoveSceneCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+			SceneID: zclDownMsg.Command.SceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procRemoveAllScenes 处理command RemoveAllScenes下行命令
 func procRemoveAllScenes(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procRemoveAllScenes] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.RemoveAllScenesCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x03,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.RemoveAllScenesCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procStoreScene 处理command StoreScene下行命令
 func procStoreScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procStoreScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.StoreSceneCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-		SceneID: zclDownMsg.Command.SceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x04,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.StoreSceneCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+			SceneID: zclDownMsg.Command.SceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procRecallScene 处理command RecallScene下行命令
 func procRecallScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procRecallScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.RecallSceneCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-		SceneID: zclDownMsg.Command.SceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x05,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.RecallSceneCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+			SceneID: zclDownMsg.Command.SceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procGetSceneMembership 处理command GetSceneMembership下行命令
 func procGetSceneMembership(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procGetSceneMembership] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.GetSceneMembership{
-		GroupID: zclDownMsg.Command.GroupID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x06,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.GetSceneMembership{
+			GroupID: zclDownMsg.Command.GroupID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procEnhancedAddScene 处理command EnhancedAddScene下行命令
 func procEnhancedAddScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procEnhancedAddScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.EnhancedAddSceneCommand{
-		GroupID:        zclDownMsg.Command.GroupID,
-		SceneID:        zclDownMsg.Command.SceneID,
-		TransitionTime: zclDownMsg.Command.TransitionTime,
-		SceneName:      zclDownMsg.Command.SceneName,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x40,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.EnhancedAddSceneCommand{
+			GroupID:        zclDownMsg.Command.GroupID,
+			SceneID:        zclDownMsg.Command.SceneID,
+			TransitionTime: zclDownMsg.Command.TransitionTime,
+			SceneName:      zclDownMsg.Command.SceneName,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procEnhancedViewScene 处理command EnhancedViewScene下行命令
 func procEnhancedViewScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procEnhancedViewScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.EnhancedViewSceneCommand{
-		GroupID: zclDownMsg.Command.GroupID,
-		SceneID: zclDownMsg.Command.SceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x41,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.EnhancedViewSceneCommand{
+			GroupID: zclDownMsg.Command.GroupID,
+			SceneID: zclDownMsg.Command.SceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procCopyScene 处理command CopyScene下行命令
 func procCopyScene(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procCopyScene] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.CopySceneCommand{
-		Mode:        zclDownMsg.Command.Mode,
-		FromGroupID: zclDownMsg.Command.FromGroupID,
-		FromSceneID: zclDownMsg.Command.FromSceneID,
-		ToGroupID:   zclDownMsg.Command.ToGroupID,
-		ToSceneID:   zclDownMsg.Command.ToSceneID,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x42,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.CopySceneCommand{
+			Mode:        zclDownMsg.Command.Mode,
+			FromGroupID: zclDownMsg.Command.FromGroupID,
+			FromSceneID: zclDownMsg.Command.FromSceneID,
+			ToGroupID:   zclDownMsg.Command.ToGroupID,
+			ToSceneID:   zclDownMsg.Command.ToSceneID,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procSendKeyCommand 处理command SendKeyCommand下行命令
 func procSendKeyCommand(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procSendKeyCommand] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANInfraredRemoteSendKeyCommand{
-		ID:      zclDownMsg.Command.InfraredRemoteID,
-		KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0xf0,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANInfraredRemoteSendKeyCommand{
+			ID:      zclDownMsg.Command.InfraredRemoteID,
+			KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procStudyKey 处理command StudyKey下行命令
 func procStudyKey(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procStudyKey] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANInfraredRemoteStudyKey{
-		ID:      zclDownMsg.Command.InfraredRemoteID,
-		KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0xf1,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANInfraredRemoteStudyKey{
+			ID:      zclDownMsg.Command.InfraredRemoteID,
+			KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procDeleteKey 处理command DeleteKey下行命令
 func procDeleteKey(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procDeleteKey] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANInfraredRemoteDeleteKey{
-		ID:      zclDownMsg.Command.InfraredRemoteID,
-		KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0xf3,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANInfraredRemoteDeleteKey{
+			ID:      zclDownMsg.Command.InfraredRemoteID,
+			KeyCode: zclDownMsg.Command.InfraredRemoteKeyCode,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procCreateID 处理command CreateID下行命令
 func procCreateID(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procCreateID] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANInfraredRemoteCreateID{
-		ModelType: zclDownMsg.Command.InfraredRemoteModelType,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0xf4,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANInfraredRemoteCreateID{
+			ModelType: zclDownMsg.Command.InfraredRemoteModelType,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procGetIDAndKeyCodeList 处理command GetIDAndKeyCodeList下行命令
 func procGetIDAndKeyCodeList(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procGetIDAndKeyCodeList] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANInfraredRemoteGetIDAndKeyCodeList{}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0xf6,
 		CommandIDConfigured: true,
-		Command:             command,
+		Command:             cluster.HEIMANInfraredRemoteGetIDAndKeyCodeList{},
 		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
@@ -990,80 +901,71 @@ func procSyncTime(zclDownMsg common.ZclDownMsg) {
 	loc2, _ := time.LoadLocation("") // 相当于LoadLocation("UTC")
 	day, _ := time.ParseDuration("8h")
 	endTime := result.In(loc2).Add(day) // 转成UTC时间并加8h
-	command := cluster.WriteAttributesCommand{
-		WriteAttributeRecords: []*cluster.WriteAttributeRecord{
-			{
-				AttributeName: "Time",
-				AttributeID:   0x0000,
-				Attribute: &cluster.Attribute{
-					DataType: cluster.ZclDataTypeUtc,
-					Value:    uint32(time.Now().UTC().Unix() - endTime.UTC().Unix()),
-				},
-			},
-			{
-				AttributeName: "TimeZone",
-				AttributeID:   0x0002,
-				Attribute: &cluster.Attribute{
-					DataType: cluster.ZclDataTypeInt32,
-					Value:    int64(8 * 60 * 60),
-				},
-			},
-		},
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeGlobal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x02,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.WriteAttributesCommand{
+			WriteAttributeRecords: []*cluster.WriteAttributeRecord{
+				{
+					AttributeName: "Time",
+					AttributeID:   0x0000,
+					Attribute: &cluster.Attribute{
+						DataType: cluster.ZclDataTypeUtc,
+						Value:    uint32(time.Now().UTC().Unix() - endTime.UTC().Unix()),
+					},
+				},
+				{
+					AttributeName: "TimeZone",
+					AttributeID:   0x0002,
+					Attribute: &cluster.Attribute{
+						DataType: cluster.ZclDataTypeInt32,
+						Value:    int64(8 * 60 * 60),
+					},
+				},
+			},
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procSetLanguage 处理command SetLanguage下行命令
 func procSetLanguage(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procSetLanguage] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANSetLanguage{
-		Language: zclDownMsg.Command.Cmd,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x00,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANSetLanguage{
+			Language: zclDownMsg.Command.Cmd,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 
 // procSetUnitOfTemperature 处理command SetUnitOfTemperature下行命令
 func procSetUnitOfTemperature(zclDownMsg common.ZclDownMsg) {
 	globallogger.Log.Infof("[devEUI: %v][procSetUnitOfTemperature] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
-	command := cluster.HEIMANSetUnitOfTemperature{
-		UnitOfTemperature: zclDownMsg.Command.Cmd,
-	}
-	frameConfig := frame.Configuration{
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
 		FrameType:           frame.FrameTypeLocal,
 		FrameTypeConfigured: true,
 		Direction:           frame.DirectionClientServer,
 		DirectionConfigured: true,
 		CommandID:           0x01,
 		CommandIDConfigured: true,
-		Command:             command,
-		CommandConfigured:   true,
-	}
-	z := zcl.New()
-	frameHexString, transactionID := z.EncFrameConfigurationToHexString(frameConfig, 0)
+		Command: cluster.HEIMANSetUnitOfTemperature{
+			UnitOfTemperature: zclDownMsg.Command.Cmd,
+		},
+		CommandConfigured: true,
+	}, 0)
 	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
 }
 

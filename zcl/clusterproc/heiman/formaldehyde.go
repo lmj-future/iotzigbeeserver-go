@@ -64,7 +64,7 @@ func formaldehydeMeasurementProcAttribute(terminalInfo config.TerminalInfo, attr
 	case "MaxMeasuredValue":
 	case "Tolerance":
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"formaldehydeMeasurementProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "formaldehydeMeasurementProcAttribute unknow attributeName", attributeName)
 	}
 }
 
@@ -91,15 +91,11 @@ func formaldehydeMeasurementProcReport(terminalInfo config.TerminalInfo, command
 
 // FormaldehydeMeasurementProc 处理clusterID 0x042b属性消息
 func FormaldehydeMeasurementProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][FormaldehydeMeasurementProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][FormaldehydeMeasurementProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		formaldehydeMeasurementProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
+	case "ReportAttributes":
 		formaldehydeMeasurementProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][FormaldehydeMeasurementProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

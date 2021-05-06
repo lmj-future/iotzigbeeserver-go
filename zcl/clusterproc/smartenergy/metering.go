@@ -43,9 +43,7 @@ func meteringProcAttribute(terminalInfo config.TerminalInfo, attributeName strin
 		values[iotsmartspace.IotwarePropertyElectric] = params[key]
 		bPublish = true
 	case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
-		// globallogger.Log.Infof("[devEUI: %v][meteringProcAttribute]: %s: %+v", terminalInfo.DevEUI, v.AttributeName, attribute.Value)
 	case "InstantaneousDemand":
-		// globallogger.Log.Infof("[devEUI: %v][meteringProcAttribute]: InstantaneousDemand: %+v", terminalInfo.DevEUI, attribute.Value.(int64))
 		instantaneousDemand := attribute.Value.(int64)
 		switch terminalInfo.TmnType {
 		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
@@ -59,7 +57,7 @@ func meteringProcAttribute(terminalInfo config.TerminalInfo, attributeName strin
 		values[iotsmartspace.IotwarePropertyPower] = params[key]
 		bPublish = true
 	default:
-		globallogger.Log.Warnln("devEUI : "+terminalInfo.DevEUI+" "+"meteringProcAttribute unknow attributeName", attributeName)
+		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcAttribute unknow attributeName", attributeName)
 	}
 	return bPublish, params, values
 }
@@ -135,7 +133,7 @@ func meteringProcWriteRsp(terminalInfo config.TerminalInfo, command interface{},
 	value = "0"
 	if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
 		contentCommand := contentFrame.Command.(*cluster.WriteAttributesCommand)
-		if contentCommand.WriteAttributeRecords[0].Attribute.Value.(bool) == true {
+		if contentCommand.WriteAttributeRecords[0].Attribute.Value.(bool) {
 			value = "1"
 		}
 		attributeName = contentCommand.WriteAttributeRecords[0].AttributeName
@@ -189,9 +187,7 @@ func meteringProcReport(terminalInfo config.TerminalInfo, command interface{}) {
 // meteringProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
 func meteringProcConfigureReportingResponse(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ConfigureReportingResponse)
-	// globallogger.Log.Infof("[devEUI: %v][meteringProcConfigureReportingResponse]: command: %+v", terminalInfo.DevEUI, Command)
 	for _, v := range Command.AttributeStatusRecords {
-		// globallogger.Log.Infof("[devEUI: %v][meteringProcConfigureReportingResponse]: AttributeStatusRecord: %+v", terminalInfo.DevEUI, v)
 		if v.Status != cluster.ZclStatusSuccess {
 			globallogger.Log.Infof("[devEUI: %v][meteringProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
 		}
@@ -200,18 +196,15 @@ func meteringProcConfigureReportingResponse(terminalInfo config.TerminalInfo, co
 
 // MeteringProc 处理clusterID 0x0702属性消息
 func MeteringProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame, msgID interface{}, contentFrame *zcl.Frame) {
-	// globallogger.Log.Infof("[devEUI: %v][MeteringProc] Start......", terminalInfo.DevEUI)
-	// globallogger.Log.Infof("[devEUI: %v][MeteringProc] zclFrame: %+v", terminalInfo.DevEUI, zclFrame)
-	z := zcl.New()
 	switch zclFrame.CommandName {
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReadAttributesResponse)].Name:
+	case "ReadAttributesResponse":
 		meteringProcReadRsp(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandWriteAttributesResponse)].Name:
+	case "WriteAttributesResponse":
 		meteringProcWriteRsp(terminalInfo, zclFrame.Command, msgID, contentFrame)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandReportAttributes)].Name:
-		meteringProcReport(terminalInfo, zclFrame.Command)
-	case z.ClusterLibrary().Global()[uint8(cluster.ZclCommandConfigureReportingResponse)].Name:
+	case "ConfigureReportingResponse":
 		meteringProcConfigureReportingResponse(terminalInfo, zclFrame.Command)
+	case "ReportAttributes":
+		meteringProcReport(terminalInfo, zclFrame.Command)
 	default:
 		globallogger.Log.Warnf("[devEUI: %v][MeteringProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 	}

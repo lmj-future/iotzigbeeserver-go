@@ -371,16 +371,12 @@ func (msgtp DataMsgType) GetMsgTypeGENERALMsgMeaning(msgType string) string {
 	switch msgType {
 	case "0001", "2006":
 		meaning = "( ZigbeeGeneralAck )"
-		break
 	case "0002", "2007":
 		meaning = "( ZigbeeGeneralKeepalive )"
-		break
 	case "0003", "2008":
 		meaning = "( ZigbeeGeneralFailed )"
-		break
 	default:
 		meaning = "WRONG GENERALMsg MSGTYPE"
-		break
 	}
 	return meaning
 }

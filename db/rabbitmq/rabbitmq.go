@@ -11,8 +11,8 @@ import (
 )
 
 // 定义全局变量,指针类型
-var mqConn *amqp.Connection
-var mqChan *amqp.Channel
+// var mqConn *amqp.Connection
+// var mqChan *amqp.Channel
 
 // Producer 定义生产者接口
 type Producer interface {
@@ -88,12 +88,12 @@ func (r *RabbitMQ) mqConnect() {
 		port = os.Getenv(port)
 	}
 	RabbitURL := "amqp://" + userName + ":" + password + "@" + host + ":" + port + "/"
-	mqConn, err = amqp.Dial(RabbitURL)
+	mqConn, err := amqp.Dial(RabbitURL)
 	r.connection = mqConn // 赋值给RabbitMQ对象
 	if err != nil {
 		globallogger.Log.Errorf("MQ打开链接失败:%s", err)
 	}
-	mqChan, err = mqConn.Channel()
+	mqChan, err := mqConn.Channel()
 	r.channel = mqChan // 赋值给RabbitMQ对象
 	if err != nil {
 		globallogger.Log.Errorf("MQ打开管道失败:%s", err)
@@ -212,17 +212,17 @@ func (r *RabbitMQ) listenReceiver(receiver Receiver) {
 		r.mqConnect()
 	}
 	// 用于检查队列是否存在,已经存在不需要重复声明
-	_, err := r.channel.QueueDeclarePassive(r.queueName, true, false, false, true, nil)
+	// _, err := r.channel.QueueDeclarePassive(r.queueName, true, false, false, true, nil)
+	// if err != nil {
+	// 队列不存在,声明队列
+	// name:队列名称;durable:是否持久化,队列存盘,true服务重启后信息不会丢失,影响性能;autoDelete:是否自动删除;noWait:是否非阻塞,
+	// true为是,不等待RMQ返回信息;args:参数,传nil即可;exclusive:是否设置排他
+	_, err := r.channel.QueueDeclare(r.queueName, true, false, false, true, nil)
 	if err != nil {
-		// 队列不存在,声明队列
-		// name:队列名称;durable:是否持久化,队列存盘,true服务重启后信息不会丢失,影响性能;autoDelete:是否自动删除;noWait:是否非阻塞,
-		// true为是,不等待RMQ返回信息;args:参数,传nil即可;exclusive:是否设置排他
-		_, err = r.channel.QueueDeclare(r.queueName, true, false, false, true, nil)
-		if err != nil {
-			globallogger.Log.Errorf("MQ注册队列失败:%s", err)
-			return
-		}
+		globallogger.Log.Errorf("MQ注册队列失败:%s", err)
+		return
 	}
+	// }
 	// 绑定任务
 	err = r.channel.QueueBind(r.queueName, r.routingKey, r.exchangeName, true, nil)
 	if err != nil {
@@ -230,7 +230,7 @@ func (r *RabbitMQ) listenReceiver(receiver Receiver) {
 		return
 	}
 	// 获取消费通道,确保rabbitMQ一个一个发送消息
-	err = r.channel.Qos(50, 0, true)
+	r.channel.Qos(50, 0, true)
 	msgList, err := r.channel.Consume(r.queueName, "", false, false, false, false, nil)
 	if err != nil {
 		globallogger.Log.Errorf("获取消费通道异常:%s", err)

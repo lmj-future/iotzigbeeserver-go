@@ -39,12 +39,12 @@ func (coll Collection) FindOneAndUpdate(filit bson.M, setData interface{}, resul
 		bIsBson = true
 	}
 	if bIsBson {
-		err = c.Update(filit, bson.M{"$set": setData})
+		c.Update(filit, bson.M{"$set": setData})
 	} else {
 		setDataSerial, _ := bson.Marshal(setData)
 		setDataMap := make(bson.M)
 		bson.Unmarshal(setDataSerial, &setDataMap)
-		err = c.Update(filit, bson.M{"$set": setDataMap})
+		c.Update(filit, bson.M{"$set": setDataMap})
 	}
 	err = c.Find(filit).One(result)
 	if err == mgo.ErrNotFound {
@@ -91,8 +91,8 @@ func (coll Collection) FindOneAndRemove(filit bson.M, result interface{}) error 
 	s := coll.Database.Session.Copy()
 	defer s.Close()
 	c := coll.Collection
-	err := c.Find(filit).One(result)
-	err = c.Remove(filit)
+	c.Find(filit).One(result)
+	err := c.Remove(filit)
 	if err == mgo.ErrNotFound {
 		err = nil
 	}
