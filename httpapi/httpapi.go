@@ -168,10 +168,7 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 			globallogger.Log.Errorln("procPostTerminalList err :", err)
 		}
 	}()
-	var resultMessage ResultMessage = ResultMessage{
-		Code:    0,
-		Message: "success",
-	}
+	var resultMessage ResultMessage = ResultMessage{}
 	var reqBodyJSONData []string
 	err := json.Unmarshal(reqBody, &reqBodyJSONData)
 	if err != nil {
@@ -186,13 +183,15 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 			terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
 		}
 		if err == nil && terminalInfo != nil {
-			iotsmartspace.StateTerminalOnlineIotware(*terminalInfo)
+			iotsmartspace.StateTerminalJoinIotware(*terminalInfo)
 		}
 	}
 	ticker := time.NewTicker(time.Millisecond * 500)
+	defer ticker.Stop()
 	for index := 0; index < 5; index++ {
 		<-ticker.C
-		for _, devEUI := range reqBodyJSONData {
+		isNeedContinue := false
+		for bodyLen, devEUI := range reqBodyJSONData {
 			var terminalInfo *config.TerminalInfo
 			var err error
 			if constant.Constant.UsePostgres {
@@ -200,34 +199,45 @@ func procPostTerminalList(params http.Params, reqBody []byte) ([]byte, error) {
 			} else {
 				terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
 			}
-			if err != nil {
-				break
-			}
-			if terminalInfo == nil {
-				resultMessage.Code = 1
-				resultMessage.Message = "设备[" + devEUI + "]加入失败"
-				break
-			}
-			if !terminalInfo.IsExist {
-				resultMessage.Code = 2
-				resultMessage.Message = "设备[" + devEUI + "]加入失败"
-				break
+			if err == nil {
+				if terminalInfo == nil {
+					if index == 4 {
+						resultMessage.Code = 1
+						resultMessage.Message = resultMessage.Message + "设备[" + devEUI + "]不存在，请检查！ "
+					} else {
+						isNeedContinue = true
+					}
+				} else {
+					if !terminalInfo.IsExist {
+						if index == 4 {
+							resultMessage.Code = 1
+							resultMessage.Message = resultMessage.Message + "设备[" + devEUI + "]加入失败！ "
+						} else {
+							isNeedContinue = true
+						}
+					} else {
+						if bodyLen == len(reqBodyJSONData) {
+							if !isNeedContinue {
+								resultMessage.Code = 0
+								resultMessage.Message = "success"
+							}
+						}
+					}
+				}
 			} else {
-				resultMessage.Code = 0
-				resultMessage.Message = "success"
+				resultMessage.Code = 1
+				resultMessage.Message = "数据库错误"
+				break
 			}
 		}
 		if err != nil {
 			ticker.Stop()
 			return []byte(err.Error()), nil
 		}
-		if resultMessage.Code == 0 || resultMessage.Code == 1 {
+		if !isNeedContinue {
 			ticker.Stop()
 			break
 		}
-	}
-	if resultMessage.Code == 2 {
-		resultMessage.Code = 1
 	}
 	jsonData, err := json.Marshal(resultMessage)
 	if err != nil {
@@ -342,6 +352,24 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 		terminalInfo.EndpointPG = pq.StringArray{"01"}
 		terminalInfo.EndpointCount = 1
 		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0009", "0500"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
 		terminalInfo.BindInfo = []config.BindInfo{
@@ -482,6 +510,22 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 		terminalInfo.EndpointPG = pq.StringArray{"01", "02"}
 		terminalInfo.EndpointCount = 2
 		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0402", "0405"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSceneSwitchEM30:
 		terminalInfo.BindInfo = []config.BindInfo{
 			{
@@ -514,6 +558,22 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 		terminalInfo.EndpointPG = pq.StringArray{"01"}
 		terminalInfo.EndpointCount = 1
 		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0502"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
@@ -644,7 +704,7 @@ func procTestTerminalJoin(params http.Params, reqBody []byte) ([]byte, error) {
 		return []byte(err.Error()), nil
 	}
 	if constant.Constant.Iotware {
-		iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
+		iotsmartspace.StateTerminalJoinIotware(terminalInfo)
 	} else if constant.Constant.Iotedge {
 		iotsmartspace.ActionInsertReplyTest(terminalInfo)
 	}
@@ -791,7 +851,7 @@ func NewServer() {
 	s.Handle(func(params http.Params, reqBody []byte) ([]byte, error) {
 		return procTestTerminalJoin(params, reqBody)
 	}, "POST", "/iot/iotzigbeeserver/test/terminalJoin")
-	s.HandlePrometheus("GET", "/iot/iotzigbeeserver/prometheus")
+	// s.HandlePrometheus("GET", "/iot/iotzigbeeserver/prometheus")
 
 	s.Start()
 	wait()

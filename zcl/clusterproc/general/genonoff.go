@@ -20,319 +20,353 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func getGenOnOffParams(terminalID string, tmnType string, value string, endpoint string) (interface{}, bool) {
-	var bPublish = false
-	params := make(map[string]interface{}, 2)
-	var key string
-	params["terminalId"] = terminalID
-	switch tmnType {
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
-		key = iotsmartspace.HeimanESocketPropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-		key = iotsmartspace.HeimanSmartPlugPropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
-		key = iotsmartspace.HeimanHS2SW1LEFR30PropertyOnOff1
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30:
-		if endpoint == "0" {
-			key = iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff2
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
-		if endpoint == "0" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff2
-			bPublish = true
-		} else if endpoint == "2" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff3
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32:
-		key = iotsmartspace.HonyarSingleSwitch00500c32PropertyOnOff1
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33:
-		if endpoint == "0" {
-			key = iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff2
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35:
-		if endpoint == "0" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff2
-			bPublish = true
-		} else if endpoint == "2" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff3
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141:
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142:
-		if endpoint == "0" {
-			bPublish = true
-		} else if endpoint == "1" {
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-		if endpoint == "0" {
-			bPublish = true
-		} else if endpoint == "1" {
-			bPublish = true
-		} else if endpoint == "2" {
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
-		key = iotsmartspace.HonyarSocket000a0c3cPropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
-		key = iotsmartspace.HonyarSocketHY0106PropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-		key = iotsmartspace.HonyarSocketHY0105PropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-		key = iotsmartspace.HonyarSocketHY0106PropertyOnOff
-		bPublish = true
+func procGenOnOffProcRead(devEUI string, dstEndpointIndex int, clusterID uint16) {
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
+		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+		DevEUI:      devEUI,
+		CommandType: common.ReadAttribute,
+		ClusterID:   clusterID,
+		Command: common.Command{
+			DstEndpointIndex: dstEndpointIndex,
+		},
+	})
+}
+func genOnOffProcKeepAlive(terminalInfo config.TerminalInfo, interval uint16) {
+	switch terminalInfo.TmnType {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+		keepalive.ProcKeepAlive(terminalInfo, interval)
+		go procGenOnOffProcRead(terminalInfo.DevEUI, 0, 0x0702)
+		go func() {
+			timer := time.NewTimer(2 * time.Second)
+			<-timer.C
+			timer.Stop()
+			procGenOnOffProcRead(terminalInfo.DevEUI, 0, 0x0b04)
+		}()
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+		keepalive.ProcKeepAlive(terminalInfo, interval)
 	default:
-		globallogger.Log.Warnf("[devEUI: %v][getGenOnOffParams] invalid tmnType: %v", terminalID, tmnType)
+		globallogger.Log.Warnf("[genOnOffProcKeepAlive]: invalid tmnType: %s", terminalInfo.TmnType)
 	}
-	params[key] = value
-	return params, bPublish
 }
 
-func genOnOffProcReadRspOrReport(terminalInfo config.TerminalInfo, srcEndpoint uint8, Value bool, attributeName string) {
-	var bPublish = false
+func genOnOffProcReadRspOrReportIotware(terminalInfo config.TerminalInfo, srcEndpoint uint8, Value bool, attributeName string) {
+	if (terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55 ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105 ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106) &&
+		(srcEndpoint == 2 || attributeName == "ChildLock" || attributeName == "BackGroundLight" || attributeName == "PowerOffMemory") {
+		switch attributeName {
+		case "OnOff":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyUSBSwitch_1{USBSwitch_1: Value})
+			}
+		case "ChildLock":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyChildLockSwitch{ChildLockSwitch: Value})
+			}
+		case "BackGroundLight":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyBackLightSwitch{BackLightSwitch: Value})
+			}
+		case "PowerOffMemory":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyMemorySwitch{MemorySwitch: !Value})
+			}
+		}
+	} else {
+		switch terminalInfo.TmnType {
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+			switch strconv.FormatUint(uint64(srcEndpoint-1), 10) {
+			case "0":
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPowerSwitch_1{PowerSwitch_1: Value})
+			case "1":
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPowerSwitch_2{PowerSwitch_2: Value})
+			case "2":
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPowerSwitch_3{PowerSwitch_3: Value})
+			}
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPowerSwitch{PowerSwitch: Value})
+		}
+	}
+}
+func genOnOffProcReadRspOrReportIotedge(terminalInfo config.TerminalInfo, srcEndpoint uint8, Value bool, attributeName string) {
+	var value = "00"
+	if Value {
+		value = "01"
+	}
+	if (terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55 ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105 ||
+		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106) &&
+		(srcEndpoint == 2 || attributeName == "ChildLock" || attributeName == "BackGroundLight" || attributeName == "PowerOffMemory") {
+		switch terminalInfo.TmnType {
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+			switch attributeName {
+			case "OnOff":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocket000a0c3cPropertyUSB{DevEUI: terminalInfo.DevEUI, USB: value}, uuid.NewV4().String())
+			case "ChildLock":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocket000a0c3cPropertyChildLock{DevEUI: terminalInfo.DevEUI, ChildLock: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+			switch attributeName {
+			case "ChildLock":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyChildLock{DevEUI: terminalInfo.DevEUI, ChildLock: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+			switch attributeName {
+			case "OnOff":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0105PropertyUSB{DevEUI: terminalInfo.DevEUI, USB: value}, uuid.NewV4().String())
+			case "ChildLock":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0105PropertyChildLock{DevEUI: terminalInfo.DevEUI, ChildLock: value}, uuid.NewV4().String())
+			case "BackGroundLight":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0105PropertyBackGroundLight{DevEUI: terminalInfo.DevEUI, BackGroundLight: value}, uuid.NewV4().String())
+			case "PowerOffMemory":
+				if Value {
+					value = "00"
+				} else {
+					value = "01"
+				}
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0105PropertyPowerOffMemory{DevEUI: terminalInfo.DevEUI, PowerOffMemory: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+			switch attributeName {
+			case "ChildLock":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyChildLock{DevEUI: terminalInfo.DevEUI, ChildLock: value}, uuid.NewV4().String())
+			case "BackGroundLight":
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyBackGroundLight{DevEUI: terminalInfo.DevEUI, BackGroundLight: value}, uuid.NewV4().String())
+			case "PowerOffMemory":
+				if Value {
+					value = "00"
+				} else {
+					value = "01"
+				}
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyPowerOffMemory{DevEUI: terminalInfo.DevEUI, PowerOffMemory: value}, uuid.NewV4().String())
+			}
+		}
+	} else {
+		endpoint := strconv.FormatUint(uint64(srcEndpoint-1), 10)
+		switch terminalInfo.TmnType {
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanESocketPropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSmartPlugPropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanHS2SW1LEFR30PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30:
+			if endpoint == "0" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "1" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff2{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
+			if endpoint == "0" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "1" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff2{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "2" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff3{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HonyarSingleSwitch00500c32PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33:
+			if endpoint == "0" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "1" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff2{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35:
+			if endpoint == "0" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff1{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "1" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff2{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			} else if endpoint == "2" {
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff3{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+			}
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141:
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142:
+			// if endpoint == "0" {
+			// } else if endpoint == "1" {
+			// }
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+			// if endpoint == "0" {
+			// } else if endpoint == "1" {
+			// } else if endpoint == "2" {
+			// }
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HonyarSocket000a0c3cPropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HonyarSocketHY0106PropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HonyarSocketHY0105PropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HonyarSocketHY0106PropertyOnOff{DevEUI: terminalInfo.DevEUI, OnOff: value}, uuid.NewV4().String())
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][genOnOffProcReadRspOrReportIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+		}
+	}
+}
+func genOnOffProcReadRspOrReportIotprivate(terminalInfo config.TerminalInfo, srcEndpoint uint8, Value bool, attributeName string) {
 	var appData string
 	if (terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c ||
 		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55 ||
 		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105 ||
 		terminalInfo.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106) &&
 		(srcEndpoint == 2 || attributeName == "ChildLock" || attributeName == "BackGroundLight" || attributeName == "PowerOffMemory") {
-		params := make(map[string]interface{}, 2)
-		var key string
-		var iotwareKey string
-		params["terminalId"] = terminalInfo.DevEUI
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
-			key = iotsmartspace.HonyarSocket000a0c3cPropertyUSB
-			switch attributeName {
-			case "OnOff":
-				key = iotsmartspace.HonyarSocket000a0c3cPropertyUSB
-				iotwareKey = iotsmartspace.IotwarePropertyUSBSwitch
-				bPublish = true
-			case "ChildLock":
-				key = iotsmartspace.HonyarSocket000a0c3cPropertyChildLock
-				iotwareKey = iotsmartspace.IotwarePropertyChildLock
-				bPublish = true
-			}
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
-			switch attributeName {
-			case "OnOff":
-				bPublish = false
-			case "ChildLock":
-				key = iotsmartspace.HonyarSocketHY0106PropertyChildLock
-				iotwareKey = iotsmartspace.IotwarePropertyChildLock
-				bPublish = true
-			}
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			switch attributeName {
-			case "OnOff":
-				key = iotsmartspace.HonyarSocketHY0105PropertyUSB
-				iotwareKey = iotsmartspace.IotwarePropertyUSBSwitch
-				bPublish = true
-			case "ChildLock":
-				key = iotsmartspace.HonyarSocketHY0105PropertyChildLock
-				iotwareKey = iotsmartspace.IotwarePropertyChildLock
-				bPublish = true
-			case "BackGroundLight":
-				key = iotsmartspace.HonyarSocketHY0105PropertyBackGroundLight
-				iotwareKey = iotsmartspace.IotwarePropertyBackLightSwitch
-				bPublish = true
-			case "PowerOffMemory":
-				key = iotsmartspace.HonyarSocketHY0105PropertyPowerOffMemory
-				iotwareKey = iotsmartspace.IotwarePropertyMemorySwitch
-				bPublish = true
-			}
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			switch attributeName {
-			case "OnOff":
-				bPublish = false
-			case "ChildLock":
-				key = iotsmartspace.HonyarSocketHY0106PropertyChildLock
-				iotwareKey = iotsmartspace.IotwarePropertyChildLock
-				bPublish = true
-			case "BackGroundLight":
-				key = iotsmartspace.HonyarSocketHY0106PropertyBackGroundLight
-				iotwareKey = iotsmartspace.IotwarePropertyBackLightSwitch
-				bPublish = true
-			case "PowerOffMemory":
-				key = iotsmartspace.HonyarSocketHY0106PropertyPowerOffMemory
-				iotwareKey = iotsmartspace.IotwarePropertyMemorySwitch
-				bPublish = true
-			}
-		}
 		if Value {
-			params[key] = "01"
 			appData = "开"
 			if attributeName == "PowerOffMemory" {
-				params[key] = "00"
 				appData = "关"
 			}
 		} else {
-			params[key] = "00"
 			appData = "关"
 			if attributeName == "PowerOffMemory" {
-				params[key] = "01"
 				appData = "开"
 			}
 		}
-		if bPublish {
-			if constant.Constant.Iotware {
-				values := make(map[string]interface{}, 1)
-				values[iotwareKey] = params[key]
-				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-			} else if constant.Constant.Iotedge {
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-			} else if constant.Constant.Iotprivate {
-				kafkaMsg := publicstruct.DataReportMsg{
-					OIDIndex:   terminalInfo.OIDIndex,
-					DevSN:      terminalInfo.DevEUI,
-					LinkType:   terminalInfo.ProfileID,
-					DeviceType: terminalInfo.TmnType2,
-				}
-				switch attributeName {
-				case "OnOff":
-					type appDataMsg struct {
-						USBState string `json:"USBState"`
-					}
-					kafkaMsg.AppData = appDataMsg{USBState: appData}
-				case "ChildLock":
-					type appDataMsg struct {
-						ChildLockState string `json:"childLockState"`
-					}
-					kafkaMsg.AppData = appDataMsg{ChildLockState: appData}
-				case "BackGroundLight":
-					type appDataMsg struct {
-						BackLightState string `json:"backLightState"`
-					}
-					kafkaMsg.AppData = appDataMsg{BackLightState: appData}
-				case "PowerOffMemory":
-					type appDataMsg struct {
-						MemoryState string `json:"memoryState"`
-					}
-					kafkaMsg.AppData = appDataMsg{MemoryState: appData}
-				}
-				kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-			}
+		kafkaMsg := publicstruct.DataReportMsg{
+			Time:       time.Now(),
+			OIDIndex:   terminalInfo.OIDIndex,
+			DevSN:      terminalInfo.DevEUI,
+			LinkType:   terminalInfo.ProfileID,
+			DeviceType: terminalInfo.TmnType2,
 		}
+		switch attributeName {
+		case "OnOff":
+			type appDataMsg struct {
+				USBState string `json:"USBState"`
+			}
+			kafkaMsg.AppData = appDataMsg{USBState: appData}
+		case "ChildLock":
+			type appDataMsg struct {
+				ChildLockState string `json:"childLockState"`
+			}
+			kafkaMsg.AppData = appDataMsg{ChildLockState: appData}
+		case "BackGroundLight":
+			type appDataMsg struct {
+				BackLightState string `json:"backLightState"`
+			}
+			kafkaMsg.AppData = appDataMsg{BackLightState: appData}
+		case "PowerOffMemory":
+			type appDataMsg struct {
+				MemoryState string `json:"memoryState"`
+			}
+			kafkaMsg.AppData = appDataMsg{MemoryState: appData}
+		}
+		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	} else {
-		value := ""
 		// Value == true: ON; Value == false: OFF
 		if Value {
-			value = "01"
 			appData = "开"
 		} else {
-			value = "00"
 			appData = "关"
 		}
-		endpoint := strconv.FormatUint(uint64(srcEndpoint-1), 10)
-
-		if constant.Constant.Iotware {
-			values := make(map[string]interface{}, 1)
-			var key string
-			switch terminalInfo.TmnType {
-			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
-				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
-				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-				if endpoint == "0" {
-					key = iotsmartspace.IotwarePropertyOnOffOne
-					bPublish = true
-				} else if endpoint == "1" {
-					key = iotsmartspace.IotwarePropertyOnOffTwo
-					bPublish = true
-				} else if endpoint == "2" {
-					key = iotsmartspace.IotwarePropertyOnOffThree
-					bPublish = true
-				}
-			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
-				constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-				key = iotsmartspace.IotwarePropertyOnOff
-				bPublish = true
-			}
-			if bPublish {
-				values[key] = value
-				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-			}
-		} else if constant.Constant.Iotedge {
-			params, bPublish := getGenOnOffParams(terminalInfo.DevEUI, terminalInfo.TmnType, value, endpoint)
-			if bPublish {
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-			}
-		} else if constant.Constant.Iotprivate {
-			kafkaMsg := publicstruct.DataReportMsg{
-				OIDIndex:   terminalInfo.OIDIndex,
-				DevSN:      terminalInfo.DevEUI,
-				LinkType:   terminalInfo.ProfileID,
-				DeviceType: terminalInfo.TmnType2,
-			}
-			switch terminalInfo.TmnType {
-			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
-				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-				if endpoint == "0" {
-					type appDataMsg struct {
-						OnOffOneState string `json:"onOffOneState"`
-					}
-					kafkaMsg.AppData = appDataMsg{OnOffOneState: "一键" + appData}
-				} else if endpoint == "1" {
-					type appDataMsg struct {
-						OnOffTwoState string `json:"onOffTwoState"`
-					}
-					kafkaMsg.AppData = appDataMsg{OnOffTwoState: "二键" + appData}
-				} else if endpoint == "2" {
-					type appDataMsg struct {
-						OnOffThreeState string `json:"onOffThreeState"`
-					}
-					kafkaMsg.AppData = appDataMsg{OnOffThreeState: "三键" + appData}
-				}
-			default:
-				type appDataMsg struct {
-					OnOffState string `json:"onOffState"`
-				}
-				kafkaMsg.AppData = appDataMsg{OnOffState: appData}
-			}
-			kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		kafkaMsg := publicstruct.DataReportMsg{
+			Time:       time.Now(),
+			OIDIndex:   terminalInfo.OIDIndex,
+			DevSN:      terminalInfo.DevEUI,
+			LinkType:   terminalInfo.ProfileID,
+			DeviceType: terminalInfo.TmnType2,
 		}
+		switch terminalInfo.TmnType {
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+			switch strconv.FormatUint(uint64(srcEndpoint-1), 10) {
+			case "0":
+				type appDataMsg struct {
+					OnOffOneState string `json:"onOffOneState"`
+				}
+				kafkaMsg.AppData = appDataMsg{OnOffOneState: "一键" + appData}
+			case "1":
+				type appDataMsg struct {
+					OnOffTwoState string `json:"onOffTwoState"`
+				}
+				kafkaMsg.AppData = appDataMsg{OnOffTwoState: "二键" + appData}
+			case "2":
+				type appDataMsg struct {
+					OnOffThreeState string `json:"onOffThreeState"`
+				}
+				kafkaMsg.AppData = appDataMsg{OnOffThreeState: "三键" + appData}
+			}
+		default:
+			type appDataMsg struct {
+				OnOffState string `json:"onOffState"`
+			}
+			kafkaMsg.AppData = appDataMsg{OnOffState: appData}
+		}
+		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+	}
+}
+func genOnOffProcReadRspOrReport(terminalInfo config.TerminalInfo, srcEndpoint uint8, Value bool, attributeName string) {
+	if constant.Constant.Iotware {
+		genOnOffProcReadRspOrReportIotware(terminalInfo, srcEndpoint, Value, attributeName)
+	} else if constant.Constant.Iotedge {
+		genOnOffProcReadRspOrReportIotedge(terminalInfo, srcEndpoint, Value, attributeName)
+	} else if constant.Constant.Iotprivate {
+		genOnOffProcReadRspOrReportIotprivate(terminalInfo, srcEndpoint, Value, attributeName)
 	}
 }
 
 //genOnOffProcReadRsp 处理readRsp（0x01）消息
 func genOnOffProcReadRsp(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		globallogger.Log.Infof("[devEUI: %v][genOnOffProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		switch v.AttributeName {
 		case "OnOff", "ChildLock", "BackGroundLight", "PowerOffMemory":
@@ -345,8 +379,39 @@ func genOnOffProcReadRsp(terminalInfo config.TerminalInfo, srcEndpoint uint8, co
 	}
 }
 
-// genOnOffProcWriteRsp 处理writeRsp（0x04）消息
-func genOnOffProcWriteRsp(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}, msgID interface{}, contentFrame *zcl.Frame) {
+func genOnOffProcWriteRspIotware(terminalInfo config.TerminalInfo, command interface{}, msgID interface{}, contentFrame *zcl.Frame) {
+	Command := command.(*cluster.WriteAttributesResponse)
+	globallogger.Log.Infof("[devEUI: %v][genOnOffProcWriteRspIotware]: command: %+v", terminalInfo.DevEUI, Command)
+	message := "success"
+	if Command.WriteAttributeStatuses[0].Status != cluster.ZclStatusSuccess {
+		message = "failed"
+	}
+	if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
+		switch contentFrame.Command.(*cluster.WriteAttributesCommand).WriteAttributeRecords[0].AttributeName {
+		case "ChildLock":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+			}
+		case "BackGroundLight":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+			}
+		case "PowerOffMemory":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+				constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+			}
+		}
+	}
+}
+func genOnOffProcWriteRspIotedge(terminalInfo config.TerminalInfo, command interface{}, msgID interface{}, contentFrame *zcl.Frame) {
 	Command := command.(*cluster.WriteAttributesResponse)
 	globallogger.Log.Infof("[devEUI: %v][genOnOffProcWriteRsp]: command: %+v", terminalInfo.DevEUI, Command)
 	code := 0
@@ -355,14 +420,7 @@ func genOnOffProcWriteRsp(terminalInfo config.TerminalInfo, srcEndpoint uint8, c
 		code = -1
 		message = "failed"
 	}
-	params := make(map[string]interface{}, 4)
-	params["code"] = code
-	params["message"] = message
-	params["terminalId"] = terminalInfo.DevEUI
-	var key string
 	var value string
-	var attributeName string
-	var bPublish = false
 	if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
 		contentCommand := contentFrame.Command.(*cluster.WriteAttributesCommand)
 		if contentCommand.WriteAttributeRecords[0].Attribute.Value.(bool) {
@@ -370,99 +428,74 @@ func genOnOffProcWriteRsp(terminalInfo config.TerminalInfo, srcEndpoint uint8, c
 		} else {
 			value = "00"
 		}
-		attributeName = contentCommand.WriteAttributeRecords[0].AttributeName
-	}
-	switch attributeName {
-	case "ChildLock":
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
-			key = iotsmartspace.HonyarSocket000a0c3cPropertyChildLock
-			bPublish = true
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
-			key = iotsmartspace.HonyarSocketHY0106PropertyChildLock
-			bPublish = true
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			key = iotsmartspace.HonyarSocketHY0105PropertyChildLock
-			bPublish = true
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			key = iotsmartspace.HonyarSocketHY0106PropertyChildLock
-			bPublish = true
-		}
-	case "BackGroundLight":
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			key = iotsmartspace.HonyarSocketHY0105PropertyBackGroundLight
-			bPublish = true
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			key = iotsmartspace.HonyarSocketHY0106PropertyBackGroundLight
-			bPublish = true
-		}
-	case "PowerOffMemory":
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			key = iotsmartspace.HonyarSocketHY0105PropertyPowerOffMemory
-			bPublish = true
-			if value == "00" {
-				value = "01"
-			} else if value == "01" {
-				value = "00"
+		switch contentCommand.WriteAttributeRecords[0].AttributeName {
+		case "ChildLock":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocket000a0c3cPropertyChildLockWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, ChildLock: value}, msgID)
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0106PropertyChildLockWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, ChildLock: value}, msgID)
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0105PropertyChildLockWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, ChildLock: value}, msgID)
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0106PropertyChildLockWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, ChildLock: value}, msgID)
 			}
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			key = iotsmartspace.HonyarSocketHY0106PropertyPowerOffMemory
-			bPublish = true
-			if value == "00" {
-				value = "01"
-			} else if value == "01" {
-				value = "00"
+		case "BackGroundLight":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0105PropertyBackGroundLightWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, BackGroundLight: value}, msgID)
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0106PropertyBackGroundLightWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, BackGroundLight: value}, msgID)
 			}
-		}
-	}
-	params[key] = value
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+		case "PowerOffMemory":
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+				if value == "00" {
+					value = "01"
+				} else if value == "01" {
+					value = "00"
+				}
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0105PropertyPowerOffMemoryWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, PowerOffMemory: value}, msgID)
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				if value == "00" {
+					value = "01"
+				} else if value == "01" {
+					value = "00"
+				}
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.HonyarSocketHY0106PropertyPowerOffMemoryWriteRsp{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, PowerOffMemory: value}, msgID)
+			}
 		}
 	}
 }
 
-func procGenOnOffProcRead(devEUI string, dstEndpointIndex int, clusterID uint16) {
-	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
-		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
-		DevEUI:      devEUI,
-		CommandType: common.ReadAttribute,
-		ClusterID:   clusterID,
-		Command: common.Command{
-			DstEndpointIndex: dstEndpointIndex,
-		},
-	})
+// genOnOffProcWriteRsp 处理writeRsp（0x04）消息
+func genOnOffProcWriteRsp(terminalInfo config.TerminalInfo, command interface{}, msgID interface{}, contentFrame *zcl.Frame) {
+	if constant.Constant.Iotware {
+		genOnOffProcWriteRspIotware(terminalInfo, command, msgID, contentFrame)
+	} else if constant.Constant.Iotedge {
+		genOnOffProcWriteRspIotedge(terminalInfo, command, msgID, contentFrame)
+	}
 }
 
-func genOnOffProcKeepAlive(devEUI string, tmnType string, interval uint16) {
-	switch tmnType {
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
-		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-		keepalive.ProcKeepAlive(devEUI, interval)
-		go procGenOnOffProcRead(devEUI, 0, 0x0702)
-		go func() {
-			timer := time.NewTimer(2 * time.Second)
-			<-timer.C
-			timer.Stop()
-			procGenOnOffProcRead(devEUI, 0, 0x0b04)
-		}()
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
-		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
-		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
-		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-		keepalive.ProcKeepAlive(devEUI, interval)
-	default:
-		globallogger.Log.Warnf("[genOnOffProcKeepAlive]: invalid tmnType: %s", tmnType)
+// genOnOffProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
+func genOnOffProcConfigureReportingResponse(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}) {
+	for _, v := range command.(*cluster.ConfigureReportingResponse).AttributeStatusRecords {
+		if v.Status != cluster.ZclStatusSuccess {
+			globallogger.Log.Infof("[devEUI: %v][genOnOffProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
+		} else {
+			// proc keepalive
+			if v.AttributeID == 0 {
+				genOnOffProcKeepAlive(terminalInfo, uint16(terminalInfo.Interval))
+			}
+		}
 	}
 }
 
@@ -471,145 +504,150 @@ func genOnOffProcReport(terminalInfo config.TerminalInfo, srcEndpoint uint8, com
 	Command := command.(*cluster.ReportAttributesCommand)
 	globallogger.Log.Infof("[devEUI: %v][genOnOffProcReport]: command: %+v", terminalInfo.DevEUI, Command.AttributeReports[0])
 	genOnOffProcReadRspOrReport(terminalInfo, srcEndpoint, Command.AttributeReports[0].Attribute.Value.(bool), Command.AttributeReports[0].AttributeName)
-	genOnOffProcKeepAlive(terminalInfo.DevEUI, terminalInfo.TmnType, uint16(terminalInfo.Interval))
+	genOnOffProcKeepAlive(terminalInfo, uint16(terminalInfo.Interval))
 }
 
-// genOnOffProcDefaultResponse 处理defaultResponse（0x0b）消息
-func genOnOffProcDefaultResponse(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}, msgID interface{}) {
+func genOnOffProcDefaultResponseIotware(terminalInfo config.TerminalInfo, command interface{}, msgID interface{}) {
 	Command := command.(*cluster.DefaultResponseCommand)
-	globallogger.Log.Infof("[devEUI: %v][genOnOffProcDefaultResponse]: command: %+v", terminalInfo.DevEUI, Command)
+	globallogger.Log.Infof("[devEUI: %v][genOnOffProcDefaultResponseIotware]: command: %+v", terminalInfo.DevEUI, Command)
+	message := "success"
+	if Command.Status != cluster.ZclStatusSuccess {
+		message = "failed"
+	}
+	switch terminalInfo.TmnType {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+	default:
+		globallogger.Log.Warnf("[devEUI: %v][genOnOffProcDefaultResponseIotware] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+	}
+}
+func genOnOffProcDefaultResponseIotedge(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}, msgID interface{}) {
+	Command := command.(*cluster.DefaultResponseCommand)
+	globallogger.Log.Infof("[devEUI: %v][genOnOffProcDefaultResponseIotedge]: command: %+v", terminalInfo.DevEUI, Command)
 	code := 0
 	message := "success"
 	if Command.Status != cluster.ZclStatusSuccess {
 		code = -1
 		message = "failed"
 	}
-	params := make(map[string]interface{}, 4)
-	params["code"] = code
-	params["message"] = message
-	params["terminalId"] = terminalInfo.DevEUI
-	var key string
 	var value string
-	var bPublish = false
 	endpoint := strconv.FormatUint(uint64(srcEndpoint-1), 10)
-	switch terminalInfo.TmnType {
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
-		key = iotsmartspace.HeimanESocketPropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-		key = iotsmartspace.HeimanSmartPlugPropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
-		key = iotsmartspace.HeimanHS2SW1LEFR30PropertyOnOff1
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30:
-		if endpoint == "0" {
-			key = iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff2
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
-		if endpoint == "0" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff2
-			bPublish = true
-		} else if endpoint == "2" {
-			key = iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff3
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32:
-		key = iotsmartspace.HonyarSingleSwitch00500c32PropertyOnOff1
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33:
-		if endpoint == "0" {
-			key = iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff2
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35:
-		if endpoint == "0" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff1
-			bPublish = true
-		} else if endpoint == "1" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff2
-			bPublish = true
-		} else if endpoint == "2" {
-			key = iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff3
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141:
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142:
-		if endpoint == "0" {
-			bPublish = true
-		} else if endpoint == "1" {
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
-		if endpoint == "0" {
-			bPublish = true
-		} else if endpoint == "1" {
-			bPublish = true
-		} else if endpoint == "2" {
-			bPublish = true
-		}
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
-		key = iotsmartspace.HonyarSocket000a0c3cPropertyOnOff
-		if srcEndpoint == 2 {
-			key = iotsmartspace.HonyarSocket000a0c3cPropertyUSB
-		}
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
-		key = iotsmartspace.HonyarSocketHY0106PropertyOnOff
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-		key = iotsmartspace.HonyarSocketHY0105PropertyOnOff
-		if srcEndpoint == 2 {
-			key = iotsmartspace.HonyarSocketHY0105PropertyUSB
-		}
-		bPublish = true
-	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-		key = iotsmartspace.HonyarSocketHY0106PropertyOnOff
-		bPublish = true
-	default:
-		globallogger.Log.Warnf("[devEUI: %v][genOnOffProcDefaultResponse] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
-	}
 	switch Command.CommandID {
 	case 0x00:
 		value = "00"
 	case 0x01:
 		value = "01"
 	default:
-		globallogger.Log.Warnf("[devEUI: %v][genOnOffProcDefaultResponse] invalid command: %v", terminalInfo.DevEUI, Command.CommandID)
+		globallogger.Log.Warnf("[devEUI: %v][genOnOffProcDefaultResponseIotedge] invalid command: %v", terminalInfo.DevEUI, Command.CommandID)
 	}
-	params[key] = value
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+	switch terminalInfo.TmnType {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HeimanESocketPropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HeimanSmartPlugPropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HeimanHS2SW1LEFR30PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30:
+		if endpoint == "0" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "1" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HeimanHS2SW2LEFR30PropertyOnOff2DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
 		}
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
+		if endpoint == "0" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "1" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff2DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "2" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HeimanHS2SW3LEFR30PropertyOnOff3DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HonyarSingleSwitch00500c32PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33:
+		if endpoint == "0" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "1" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarDoubleSwitch00500c33PropertyOnOff2DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35:
+		if endpoint == "0" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff1DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "1" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff2DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		} else if endpoint == "2" {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarTripleSwitch00500c35PropertyOnOff3DefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141:
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142:
+		// if endpoint == "0" {
+		// } else if endpoint == "1" {
+		// }
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+		// if endpoint == "0" {
+		// } else if endpoint == "1" {
+		// } else if endpoint == "2" {
+		// }
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+		if srcEndpoint == 2 {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarSocket000a0c3cPropertyUSBDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, USB: value}, msgID)
+		} else {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarSocket000a0c3cPropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HonyarSocketHY0106PropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+		if srcEndpoint == 2 {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarSocketHY0105PropertyUSBDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, USB: value}, msgID)
+		} else {
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+				iotsmartspace.HonyarSocketHY0105PropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			iotsmartspace.HonyarSocketHY0106PropertyOnOffDefaultResponse{Code: code, Message: message, DevEUI: terminalInfo.DevEUI, OnOff: value}, msgID)
+	default:
+		globallogger.Log.Warnf("[devEUI: %v][genOnOffProcDefaultResponseIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
 	}
 }
 
-// genOnOffProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
-func genOnOffProcConfigureReportingResponse(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}) {
-	Command := command.(*cluster.ConfigureReportingResponse)
-	for _, v := range Command.AttributeStatusRecords {
-		if v.Status != cluster.ZclStatusSuccess {
-			globallogger.Log.Infof("[devEUI: %v][genOnOffProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
-		} else {
-			// proc keepalive
-			if v.AttributeID == 0 {
-				genOnOffProcKeepAlive(terminalInfo.DevEUI, terminalInfo.TmnType, uint16(terminalInfo.Interval))
-			}
-		}
+// genOnOffProcDefaultResponse 处理defaultResponse（0x0b）消息
+func genOnOffProcDefaultResponse(terminalInfo config.TerminalInfo, srcEndpoint uint8, command interface{}, msgID interface{}) {
+	if constant.Constant.Iotware {
+		genOnOffProcDefaultResponseIotware(terminalInfo, command, msgID)
+	} else if constant.Constant.Iotedge {
+		genOnOffProcDefaultResponseIotedge(terminalInfo, srcEndpoint, command, msgID)
 	}
 }
 
@@ -619,7 +657,7 @@ func GenOnOffProc(terminalInfo config.TerminalInfo, srcEndpoint uint8, zclFrame 
 	case "ReadAttributesResponse":
 		genOnOffProcReadRsp(terminalInfo, srcEndpoint, zclFrame.Command)
 	case "WriteAttributesResponse":
-		genOnOffProcWriteRsp(terminalInfo, srcEndpoint, zclFrame.Command, msgID, contentFrame)
+		genOnOffProcWriteRsp(terminalInfo, zclFrame.Command, msgID, contentFrame)
 	case "ConfigureReportingResponse":
 		genOnOffProcConfigureReportingResponse(terminalInfo, srcEndpoint, zclFrame.Command)
 	case "ReportAttributes":

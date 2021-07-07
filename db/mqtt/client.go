@@ -34,7 +34,7 @@ func connect(clientOptions *mqtt.ClientOptions) error {
 		globallogger.Log.Errorf("[MQTT] mqtt connect error, taskID: %s, error: %s", taskID, token.Error())
 		return token.Error()
 	} else {
-		globallogger.Log.Infof("[MQTT] connect success %+v, %+v", token, clientOptions)
+		globallogger.Log.Errorf("[MQTT] connect success taskID:%s, token:%+v, clientOptions:%+v", taskID, token, clientOptions)
 		return nil
 	}
 }

@@ -1,25 +1,25 @@
 {
   "udpPort" : 3501,
-  "httpPort" : "3510",
+  "httpPort" : "1234",
   "redisConnParas" : {
     "port" :  "6379",
-    "host" :  "h3c-redis",
-    "password" : "h3c-iot-edge-redis",
+    "host" :  "localhost",
+    "password" : "",
     "useAlone" : true
   },
   "mongoConnParas" : {
     "port" : "27017",
-    "host" : "h3c-db",
+    "host" : "localhost",
     "userName" : "iotzigbeeserver",
     "password" : "iotzigbeeserver",
     "dbName" : "iotzigbeeserver"
   },
   "postgresConnParas" : {
     "port" : "5432",
-    "host" : "h3c-postgres",
-    "userName" : "h3c_zigbee",
-    "password" : "h3c_iot_edge_zigbee",
-    "dbName" : "h3c_zigbee",
+    "host" : "localhost",
+    "userName" : "postgres",
+    "password" : "postgres",
+    "dbName" : "postgres",
     "sslMode" : "disable"
   },
   "rabbitMQConnParas" : {
@@ -30,9 +30,9 @@
   },
   "mqttConnParas" : {
     "port" :  "1883",
-    "host" :  "h3c-hub",
-    "userName" : "admin-tcp",
-    "password" : "h3c-hub-tcp"
+    "host" :  "localhost",
+    "userName" : "",
+    "password" : ""
   },
   "kafkaConnParas" : {
     "host1" :  "localhost",
@@ -49,12 +49,13 @@
   "useRabbitMQ" : false,
   "useKafka" : false,
   "useMQTT" : true,
-  "iotware" : false,
+  "iotware" : true,
+  "wcg" : false,
   "iotprivate" : false,
-  "iotedge" : true,
+  "iotedge" : false,
   "logger" : {
     "path" : "iotzigbeeserver.log",
-    "level" : "error",
+    "level" : "debug",
     "store" : "postgres"
   }
 }

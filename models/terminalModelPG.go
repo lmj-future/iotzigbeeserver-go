@@ -12,14 +12,14 @@ var terminalInfoModelCheckNum = 0
 
 func getTerminalInfoModelPG() *gorm.DB {
 	db := postgres.GetInstance().GetPostGresDB()
-	if !db.HasTable("terminalinfos") {
-		db.Table("terminalinfos").CreateTable(&config.TerminalInfo{})
+	if !db.HasTable("zigbeeterminalinfos") {
+		db.Table("zigbeeterminalinfos").CreateTable(&config.TerminalInfo{})
 	} else {
 		if terminalInfoModelCheckNum == 0 {
 			terminalInfoModelCheckNum++
-			db.Table("terminalinfos").AutoMigrate(&config.TerminalInfo{})
+			db.Table("zigbeeterminalinfos").AutoMigrate(&config.TerminalInfo{})
 		} else {
-			db.Table("terminalinfos")
+			db.Table("zigbeeterminalinfos")
 		}
 	}
 	return db

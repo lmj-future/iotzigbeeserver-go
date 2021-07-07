@@ -1,12 +1,15 @@
 package publicstruct
 
 import (
+	"time"
+
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/dgram"
 )
 
 // DataReportMsg DataReportMsg
 type DataReportMsg struct {
+	Time       time.Time   `json:"time"`
 	OIDIndex   string      `json:"OIDIndex"`
 	DevSN      string      `json:"devSN"`
 	LinkType   string      `json:"linkType"`
@@ -25,11 +28,39 @@ type EventDeviceDeleteIotware struct {
 	DeviceList []string `json:"deviceList"`
 }
 
+type IotwareProperty struct {
+	PowerSwitch         bool    `json:"PowerSwitch"`
+	PowerSwitch_1       bool    `json:"PowerSwitch_1"`
+	PowerSwitch_2       bool    `json:"PowerSwitch_2"`
+	PowerSwitch_3       bool    `json:"PowerSwitch_3"`
+	Time                float64 `json:"time"`
+	Lower               float64 `json:"lower"`
+	Upper               float64 `json:"upper"`
+	NoDisturb           bool    `json:"NoDisturb"`
+	IRId                float64 `json:"IRId"`
+	KeyCode             float64 `json:"KeyCode"`
+	ModelType           float64 `json:"ModelType"`
+	ChildLockSwitch     bool    `json:"ChildLockSwitch"`
+	USBSwitch_1         bool    `json:"USBSwitch_1"`
+	BackLightSwitch     bool    `json:"BackLightSwitch"`
+	MemorySwitch        bool    `json:"MemorySwitch"`
+	ClearHistory        string  `json:"ClearHistory"`
+	SwitchLeftUpLogo    string  `json:"SwitchLeftUpLogo"`
+	SwitchLeftMidLogo   string  `json:"SwitchLeftMidLogo"`
+	SwitchLeftDownLogo  string  `json:"SwitchLeftDownLogo"`
+	SwitchRightUpLogo   string  `json:"SwitchRightUpLogo"`
+	SwitchRightMidLogo  string  `json:"SwitchRightMidLogo"`
+	SwitchRightDownLogo string  `json:"SwitchRightDownLogo"`
+	Language            string  `json:"Language"`
+	UnitOfTemperature   string  `json:"UnitOfTemperature"`
+	WarningMode         float64 `json:"WarningMode"`
+}
+
 // DataTemp DataTemp
 type DataTemp struct {
-	ID     interface{} `json:"id"`
-	Method string      `json:"method"`
-	Params interface{} `json:"params"`
+	ID     interface{}     `json:"id"`
+	Method string          `json:"method"`
+	Params IotwareProperty `json:"params"`
 }
 
 // RPCIotware RPCIotware

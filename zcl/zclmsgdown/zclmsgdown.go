@@ -564,8 +564,26 @@ func procStartWarning(zclDownMsg common.ZclDownMsg) {
 		Command: cluster.StartWarning{
 			WarningControl:  zclDownMsg.Command.WarningControl,
 			WarningDuration: zclDownMsg.Command.WarningTime,
-			StrobeDutyCycle: 0x28,
-			StrobeLevel:     0x01,
+			StrobeDutyCycle: 0x32,
+			StrobeLevel:     0x03,
+		},
+		CommandConfigured: true,
+	}, 0)
+	procZclMsgDown(zclDownMsg, frameHexString, transactionID)
+}
+
+// procSquawk 处理command Squawk下行命令
+func procSquawk(zclDownMsg common.ZclDownMsg) {
+	globallogger.Log.Infof("[devEUI: %v][procSquawk] start: %+v", zclDownMsg.DevEUI, zclDownMsg)
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
+		FrameType:           frame.FrameTypeLocal,
+		FrameTypeConfigured: true,
+		Direction:           frame.DirectionClientServer,
+		DirectionConfigured: true,
+		CommandID:           0x00,
+		CommandIDConfigured: true,
+		Command: cluster.Squark{
+			SquarkControl: zclDownMsg.Command.SquawkMode,
 		},
 		CommandConfigured: true,
 	}, 0)
@@ -1002,6 +1020,8 @@ func ProcZclDownMsg(zclDownMsg common.ZclDownMsg) {
 		procSetThreshold(zclDownMsg)
 	case common.StartWarning:
 		procStartWarning(zclDownMsg)
+	case common.Squawk:
+		procSquawk(zclDownMsg)
 	case common.HeimanScenesDefaultResponse:
 		procHeimanScenesDefaultResponse(zclDownMsg)
 	case common.AddScene:

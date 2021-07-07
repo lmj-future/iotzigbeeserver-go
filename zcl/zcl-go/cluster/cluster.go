@@ -180,7 +180,8 @@ const (
 
 // HONYAR私有属性
 const (
-	HONYARScenes ID = 0xfe05
+	HONYARPM25Measurement ID = 0xfe02
+	HONYARScenes          ID = 0xfe05
 )
 
 // New New
@@ -856,6 +857,12 @@ func New() *Library {
 						0xf5: {"CreateIDResponse", &HEIMANInfraredRemoteCreateIDResponse{}},
 						0xf7: {"GetIDAndKeyCodeListResponse", &HEIMANInfraredRemoteGetIDAndKeyCodeListResponse{}},
 					},
+				},
+			},
+			HONYARPM25Measurement: {
+				Name: "HONYARPM25Measurement",
+				AttributeDescriptors: map[uint16]*AttributeDescriptor{
+					0x0000: {"MeasuredValue", ZclDataTypeUint16, Read},
 				},
 			},
 			HONYARScenes: {

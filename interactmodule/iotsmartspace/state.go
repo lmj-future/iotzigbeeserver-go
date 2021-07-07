@@ -77,6 +77,24 @@ func StateTerminalOfflineIotware(terminalInfo config.TerminalInfo) {
 	PublishIotware(TopicV1GatewayDisconnect, jsonMsg)
 }
 
+// StateTerminalJoinIotware StateTerminalJoinIotware
+func StateTerminalJoinIotware(terminalInfo config.TerminalInfo) {
+	jsonMsg, err := json.Marshal(iotwareConnect{
+		Device: terminalInfo.DevEUI,
+		Type:   terminalInfo.ManufacturerName + "-" + terminalInfo.TmnType,
+		Gateway: gateway{
+			FirstAddr:  terminalInfo.FirstAddr,
+			SecondAddr: terminalInfo.SecondAddr,
+			ThirdAddr:  terminalInfo.ThirdAddr,
+			PortID:     terminalInfo.ModuleID,
+		},
+	})
+	if err != nil {
+		globallogger.Log.Errorf("[StateTerminalJoinIotware]: JSON marshaling failed: %s", err)
+	}
+	PublishIotware(TopicV1GatewayNetworkIn, jsonMsg)
+}
+
 // StateTerminalLeaveIotware StateTerminalLeaveIotware
 func StateTerminalLeaveIotware(terminalInfo config.TerminalInfo) {
 	jsonMsg, err := json.Marshal(iotwareConnect{

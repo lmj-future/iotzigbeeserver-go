@@ -50,6 +50,7 @@
   "useKafka" : false,
   "useMQTT" : true,
   "iotware" : false,
+  "wcg" : false,
   "iotprivate" : false,
   "iotedge" : true,
   "logger" : {

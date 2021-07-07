@@ -49,11 +49,6 @@ type BindInfo struct {
 	DstEndpoint  string   `json:"dstEndpoint" bson:"dstEndpoint,omitempty"`
 }
 
-// TableName TableName
-func (t TerminalInfo) TableName() string {
-	return "terminalinfos"
-}
-
 //TerminalInfo TerminalInfo
 type TerminalInfo struct {
 	ID                         uint           `json:"id" bson:"-" gorm:"primary_key"`
@@ -119,6 +114,11 @@ type TerminalInfo struct {
 	Interval                   int            `json:"interval" bson:"interval,omitempty" gorm:"column:interval"`
 }
 
+// TableName TableName
+func (t TerminalInfo) TableName() string {
+	return "zigbeeterminalinfos"
+}
+
 //TerminalInfo2 TerminalInfo2
 type TerminalInfo2 struct {
 	DevEUI           string    `json:"devEUI" bson:"devEUI,omitempty"`
@@ -134,11 +134,6 @@ type TerminalInfo2 struct {
 	CreateTime       time.Time `json:"createTime" bson:"createTime,omitempty"` //终端首次上线时间
 }
 
-// TableName TableName
-func (t SocketInfo) TableName() string {
-	return "socketinfos"
-}
-
 //SocketInfo SocketInfo
 type SocketInfo struct {
 	ID         uint      `json:"id" bson:"-" gorm:"primary_key"`
@@ -149,6 +144,11 @@ type SocketInfo struct {
 	IPPort     int       `json:"IPPort" bson:"IPPort,omitempty" gorm:"column:ipport"` //源socket的port
 	UpdateTime time.Time `json:"updateTime" bson:"updateTime,omitempty" gorm:"column:updatetime"`
 	CreateTime time.Time `json:"createTime" bson:"createTime,omitempty" gorm:"column:createtime"`
+}
+
+// TableName TableName
+func (s SocketInfo) TableName() string {
+	return "zigbeesocketinfos"
 }
 
 // Interval Interval

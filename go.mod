@@ -28,7 +28,6 @@ require (
 	github.com/lib/pq v1.10.0
 	github.com/mna/redisc v1.1.7 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.10.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/streadway/amqp v1.0.0

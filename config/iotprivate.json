@@ -51,6 +51,7 @@
   "useMQTT" : true,
   "iotware" : false,
   "iotprivate" : true,
+  "wcg" : false,
   "iotedge" : false,
   "logger" : {
     "path" : "iotzigbeeserver.log",

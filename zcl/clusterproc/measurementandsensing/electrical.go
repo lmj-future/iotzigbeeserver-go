@@ -3,6 +3,7 @@ package measurementandsensing
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/constant"
@@ -15,143 +16,192 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func electricalMeasurementProcAttribute(terminalInfo config.TerminalInfo, RMSVoltage uint64, ACVoltageDivisor float64, RMSCurrent uint64,
-	ACCurrentDivisor float64, ActivePower int64, ACPowerDivisor float64, bPublish bool,
-	params map[string]interface{}, values map[string]interface{}) (bool, map[string]interface{}, map[string]interface{}) {
-	RMSVoltageValue := strconv.FormatFloat(float64(RMSVoltage)/ACVoltageDivisor, 'f', 2, 64)
-	RMSCurrentValue := strconv.FormatFloat(float64(RMSCurrent)/ACCurrentDivisor, 'f', 2, 64)
-	ActivePowerValue := strconv.FormatFloat(float64(ActivePower)/ACPowerDivisor, 'f', 2, 64)
+func electricalMeasurementProcReadOrReportIotware(terminalInfo config.TerminalInfo, RMSVoltageValue string, RMSCurrentValue string, ActivePowerValue string) {
+	switch terminalInfo.TmnType {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyVoltageCurrentPower{RealTimePower: ActivePowerValue})
+		}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		var value iotsmartspace.IotwarePropertyVoltageCurrentPower = iotsmartspace.IotwarePropertyVoltageCurrentPower{}
+		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
+			value.CurrentVoltage = RMSVoltageValue
+		}
+		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
+			value.Current = RMSCurrentValue
+		}
+		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
+			value.RealTimePower = ActivePowerValue
+		}
+		iotsmartspace.PublishTelemetryUpIotware(terminalInfo, value)
+	default:
+		globallogger.Log.Warnf("[devEUI: %v][electricalMeasurementProcReadOrReportIotware] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+	}
+}
+
+func electricalMeasurementProcReadOrReportIotedge(terminalInfo config.TerminalInfo, RMSVoltageValue string, RMSCurrentValue string, ActivePowerValue string) {
 	switch terminalInfo.TmnType {
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HeimanESocketPropertyPower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanESocketPropertyPower{DevEUI: terminalInfo.DevEUI, Power: ActivePowerValue}, uuid.NewV4().String())
 		}
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HeimanSmartPlugPropertyPower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSmartPlugPropertyPower{DevEUI: terminalInfo.DevEUI, Power: ActivePowerValue}, uuid.NewV4().String())
 		}
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+		var value iotsmartspace.HonyarSocket000a0c3cPropertyVoltageCurrentPower = iotsmartspace.HonyarSocket000a0c3cPropertyVoltageCurrentPower{
+			DevEUI: terminalInfo.DevEUI,
+		}
 		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
-			params[iotsmartspace.HonyarSocket000a0c3cPropertyRMSVoltage] = RMSVoltageValue
-			values[iotsmartspace.IotwarePropertyVoltage] = RMSVoltageValue
-			bPublish = true
+			value.RMSVoltage = RMSVoltageValue
 		}
 		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
-			params[iotsmartspace.HonyarSocket000a0c3cPropertyRMSCurrent] = RMSCurrentValue
-			values[iotsmartspace.IotwarePropertyCurrent] = RMSCurrentValue
-			bPublish = true
+			value.RMSCurrent = RMSCurrentValue
 		}
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HonyarSocket000a0c3cPropertyActivePower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			value.ActivePower = ActivePowerValue
 		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, value, uuid.NewV4().String())
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+		var value iotsmartspace.HonyarSocketHY0106PropertyVoltageCurrentPower = iotsmartspace.HonyarSocketHY0106PropertyVoltageCurrentPower{
+			DevEUI: terminalInfo.DevEUI,
+		}
 		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyRMSVoltage] = RMSVoltageValue
-			values[iotsmartspace.IotwarePropertyVoltage] = RMSVoltageValue
-			bPublish = true
+			value.RMSVoltage = RMSVoltageValue
 		}
 		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyRMSCurrent] = RMSCurrentValue
-			values[iotsmartspace.IotwarePropertyCurrent] = RMSCurrentValue
-			bPublish = true
+			value.RMSCurrent = RMSCurrentValue
 		}
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyActivePower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			value.ActivePower = ActivePowerValue
 		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, value, uuid.NewV4().String())
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+		var value iotsmartspace.HonyarSocketHY0105PropertyVoltageCurrentPower = iotsmartspace.HonyarSocketHY0105PropertyVoltageCurrentPower{
+			DevEUI: terminalInfo.DevEUI,
+		}
 		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0105PropertyRMSVoltage] = RMSVoltageValue
-			values[iotsmartspace.IotwarePropertyVoltage] = RMSVoltageValue
-			bPublish = true
+			value.RMSVoltage = RMSVoltageValue
 		}
 		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0105PropertyRMSCurrent] = RMSCurrentValue
-			values[iotsmartspace.IotwarePropertyCurrent] = RMSCurrentValue
-			bPublish = true
+			value.RMSCurrent = RMSCurrentValue
 		}
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0105PropertyActivePower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			value.ActivePower = ActivePowerValue
 		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, value, uuid.NewV4().String())
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		var value iotsmartspace.HonyarSocketHY0106PropertyVoltageCurrentPower = iotsmartspace.HonyarSocketHY0106PropertyVoltageCurrentPower{
+			DevEUI: terminalInfo.DevEUI,
+		}
 		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyRMSVoltage] = RMSVoltageValue
-			values[iotsmartspace.IotwarePropertyVoltage] = RMSVoltageValue
-			bPublish = true
+			value.RMSVoltage = RMSVoltageValue
 		}
 		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyRMSCurrent] = RMSCurrentValue
-			values[iotsmartspace.IotwarePropertyCurrent] = RMSCurrentValue
-			bPublish = true
+			value.RMSCurrent = RMSCurrentValue
 		}
 		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
-			params[iotsmartspace.HonyarSocketHY0106PropertyActivePower] = ActivePowerValue
-			values[iotsmartspace.IotwarePropertyPower] = ActivePowerValue
-			bPublish = true
+			value.ActivePower = ActivePowerValue
 		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, value, uuid.NewV4().String())
 	default:
-		globallogger.Log.Warnf("[devEUI: %v][electricalMeasurementProcAttribute] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+		globallogger.Log.Warnf("[devEUI: %v][electricalMeasurementProcReadOrReportIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
 	}
-
-	return bPublish, params, values
 }
 
-func electricalMeasurementProcMsg2Kafka(terminalInfo config.TerminalInfo, values map[string]interface{}) {
-	kafkaMsg := publicstruct.DataReportMsg{
-		OIDIndex:   terminalInfo.OIDIndex,
-		DevSN:      terminalInfo.DevEUI,
-		LinkType:   terminalInfo.ProfileID,
-		DeviceType: terminalInfo.TmnType2,
-	}
-	if voltage, ok := values[iotsmartspace.IotwarePropertyVoltage]; ok {
-		type appDataMsg struct {
-			Voltage string `json:"voltage"`
+func electricalMeasurementProcReadOrReportIotprivate(terminalInfo config.TerminalInfo, RMSVoltageValue string, RMSCurrentValue string, ActivePowerValue string) {
+	switch terminalInfo.TmnType {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
+			type appDataMsg struct {
+				Power string `json:"power"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Power: ActivePowerValue + "W"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
-		kafkaMsg.AppData = appDataMsg{Voltage: voltage.(string) + "V"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-	}
-	if current, ok := values[iotsmartspace.IotwarePropertyCurrent]; ok {
-		type appDataMsg struct {
-			Current string `json:"current"`
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		if RMSVoltageValue != "NaN" && RMSVoltageValue != "+Inf" {
+			type appDataMsg struct {
+				Voltage string `json:"voltage"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Voltage: RMSVoltageValue + "V"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
-		kafkaMsg.AppData = appDataMsg{Current: current.(string) + "A"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-	}
-	if power, ok := values[iotsmartspace.IotwarePropertyPower]; ok {
-		type appDataMsg struct {
-			Power string `json:"power"`
+		if RMSCurrentValue != "NaN" && RMSCurrentValue != "+Inf" {
+			type appDataMsg struct {
+				Current string `json:"current"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Current: RMSCurrentValue + "A"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
-		kafkaMsg.AppData = appDataMsg{Power: power.(string) + "W"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		if ActivePowerValue != "NaN" && ActivePowerValue != "+Inf" {
+			type appDataMsg struct {
+				Power string `json:"power"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Power: ActivePowerValue + "W"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		}
+	default:
+		globallogger.Log.Warnf("[devEUI: %v][electricalMeasurementProcReadOrReportIotprivate] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+	}
+}
+
+func electricalMeasurementProcReadOrReport(terminalInfo config.TerminalInfo, RMSVoltage float64, ACVoltageDivisor float64,
+	RMSCurrent float64, ACCurrentDivisor float64, ActivePower float64, ACPowerDivisor float64) {
+	if constant.Constant.Iotware {
+		electricalMeasurementProcReadOrReportIotware(terminalInfo, strconv.FormatFloat(RMSVoltage/ACVoltageDivisor, 'f', 2, 64),
+			strconv.FormatFloat(RMSCurrent/ACCurrentDivisor, 'f', 2, 64), strconv.FormatFloat(ActivePower/ACPowerDivisor, 'f', 2, 64))
+	} else if constant.Constant.Iotedge {
+		electricalMeasurementProcReadOrReportIotedge(terminalInfo, strconv.FormatFloat(RMSVoltage/ACVoltageDivisor, 'f', 2, 64),
+			strconv.FormatFloat(RMSCurrent/ACCurrentDivisor, 'f', 2, 64), strconv.FormatFloat(ActivePower/ACPowerDivisor, 'f', 2, 64))
+	} else if constant.Constant.Iotprivate {
+		electricalMeasurementProcReadOrReportIotprivate(terminalInfo, strconv.FormatFloat(RMSVoltage/ACVoltageDivisor, 'f', 2, 64),
+			strconv.FormatFloat(RMSCurrent/ACCurrentDivisor, 'f', 2, 64), strconv.FormatFloat(ActivePower/ACPowerDivisor, 'f', 2, 64))
 	}
 }
 
 //electricalMeasurementProcReadAttributesResponse 处理readRsp（0x01）消息
 func electricalMeasurementProcReadAttributesResponse(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	params := make(map[string]interface{}, 3)
-	values := make(map[string]interface{}, 3)
-	var bPublish = false
-	params["terminalId"] = terminalInfo.DevEUI
 	var RMSVoltage uint64
 	var ACVoltageDivisor uint64
 	var RMSCurrent uint64
 	var ACCurrentDivisor uint64
 	var ActivePower int64
 	var ACPowerDivisor uint64
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		if v.Status == cluster.ZclStatusSuccess {
 			switch v.AttributeName {
 			case "MeasurementType", "PowerFactor", "ACVoltageMultiplier", "ACCurrentMultiplier", "ACPowerMultiplier",
@@ -175,35 +225,21 @@ func electricalMeasurementProcReadAttributesResponse(terminalInfo config.Termina
 			}
 		}
 	}
-	bPublish, params, values = electricalMeasurementProcAttribute(terminalInfo, RMSVoltage, float64(ACVoltageDivisor),
-		RMSCurrent, float64(ACCurrentDivisor), ActivePower, float64(ACPowerDivisor), bPublish, params, values)
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			electricalMeasurementProcMsg2Kafka(terminalInfo, values)
-		}
-	}
+	electricalMeasurementProcReadOrReport(terminalInfo, float64(RMSVoltage), float64(ACVoltageDivisor), float64(RMSCurrent),
+		float64(ACCurrentDivisor), float64(ActivePower), float64(ACPowerDivisor))
 }
 
 // electricalMeasurementProcReport 处理report（0x0a）消息
 func electricalMeasurementProcReport(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ReportAttributesCommand)
 	globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	attributeReports := Command.AttributeReports
-	params := make(map[string]interface{}, 3)
-	values := make(map[string]interface{}, 3)
-	var bPublish = false
-	params["terminalId"] = terminalInfo.DevEUI
 	var RMSVoltage uint64
 	var ACVoltageDivisor uint64
 	var RMSCurrent uint64
 	var ACCurrentDivisor uint64
 	var ActivePower int64
 	var ACPowerDivisor uint64
-	for _, v := range attributeReports {
+	for _, v := range Command.AttributeReports {
 		switch v.AttributeName {
 		case "MeasurementType", "PowerFactor", "ACVoltageMultiplier", "ACCurrentMultiplier", "ACPowerMultiplier",
 			"ACAlarmsMask", "ACVoltageOverload", "ACCurrentOverload", "ACActivePowerOverload":
@@ -225,23 +261,13 @@ func electricalMeasurementProcReport(terminalInfo config.TerminalInfo, command i
 				terminalInfo.DevEUI, v.AttributeName)
 		}
 	}
-	bPublish, params, values = electricalMeasurementProcAttribute(terminalInfo, RMSVoltage, float64(ACVoltageDivisor),
-		RMSCurrent, float64(ACCurrentDivisor), ActivePower, float64(ACPowerDivisor), bPublish, params, values)
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			electricalMeasurementProcMsg2Kafka(terminalInfo, values)
-		}
-	}
+	electricalMeasurementProcReadOrReport(terminalInfo, float64(RMSVoltage), float64(ACVoltageDivisor), float64(RMSCurrent),
+		float64(ACCurrentDivisor), float64(ActivePower), float64(ACPowerDivisor))
 }
 
 // electricalMeasurementProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
 func electricalMeasurementProcConfigureReportingResponse(terminalInfo config.TerminalInfo, command interface{}) {
-	Command := command.(*cluster.ConfigureReportingResponse)
-	for _, v := range Command.AttributeStatusRecords {
+	for _, v := range command.(*cluster.ConfigureReportingResponse).AttributeStatusRecords {
 		if v.Status != cluster.ZclStatusSuccess {
 			globallogger.Log.Infof("[devEUI: %v][electricalMeasurementProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
 		}

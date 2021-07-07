@@ -14,41 +14,37 @@ import (
 
 // ScenesProc 处理clusterID 0xfc80属性消息
 func ScenesProc(terminalInfo config.TerminalInfo, zclFrame *zcl.Frame) {
-	params := make(map[string]interface{}, 2)
-	values := make(map[string]interface{}, 1)
-	params["terminalId"] = terminalInfo.DevEUI
-	var key string
-	var bPublish = false
-	switch zclFrame.CommandName {
-	case "AtHome":
-		key = iotsmartspace.HeimanSceneSwitchEM30PropertyAtHome
-		values[iotsmartspace.IotwarePropertySwitchRight] = "1"
-		bPublish = true
-	case "GoOut":
-		key = iotsmartspace.HeimanSceneSwitchEM30PropertyGoOut
-		values[iotsmartspace.IotwarePropertySwitchLeft] = "1"
-		bPublish = true
-	case "Cinema":
-		key = iotsmartspace.HeimanSceneSwitchEM30PropertyCinema
-		values[iotsmartspace.IotwarePropertySwitchUp] = "1"
-		bPublish = true
-	case "Repast":
-		key = iotsmartspace.HeimanSceneSwitchEM30PropertyRepast
-		bPublish = true
-	case "Sleep":
-		key = iotsmartspace.HeimanSceneSwitchEM30PropertySleep
-		values[iotsmartspace.IotwarePropertySwitchDown] = "1"
-		bPublish = true
-	default:
-		globallogger.Log.Warnf("[devEUI: %v][ScenesProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
-	}
-	params[key] = "1"
-	// iotsmartspace publish msg to app
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+	if constant.Constant.Iotware {
+		switch zclFrame.CommandName {
+		case "AtHome":
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertySwitchRight{SwitchRight: "1"})
+		case "GoOut":
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertySwitchLeft{SwitchLeft: "1"})
+		case "Cinema":
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertySwitchUp{SwitchUp: "1"})
+		case "Repast":
+		case "Sleep":
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertySwitchDown{SwitchDown: "1"})
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][ScenesProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
+		}
+	} else if constant.Constant.Iotedge {
+		switch zclFrame.CommandName {
+		case "AtHome":
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSceneSwitchEM30PropertyAtHome{DevEUI: terminalInfo.DevEUI, AtHome: "1"}, uuid.NewV4().String())
+		case "GoOut":
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSceneSwitchEM30PropertyGoOut{DevEUI: terminalInfo.DevEUI, GoOut: "1"}, uuid.NewV4().String())
+		case "Cinema":
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSceneSwitchEM30PropertyCinema{DevEUI: terminalInfo.DevEUI, Cinema: "1"}, uuid.NewV4().String())
+		case "Repast":
+		case "Sleep":
+			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+				iotsmartspace.HeimanSceneSwitchEM30PropertySleep{DevEUI: terminalInfo.DevEUI, Sleep: "1"}, uuid.NewV4().String())
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][ScenesProc] invalid commandName: %v", terminalInfo.DevEUI, zclFrame.CommandName)
 		}
 	}
 	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{

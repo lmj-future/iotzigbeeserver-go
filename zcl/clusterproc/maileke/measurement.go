@@ -20,8 +20,7 @@ func measurementProcAttribute(terminalInfo config.TerminalInfo, attributeName st
 
 //measurementProcReadRsp 处理readRsp（0x01）消息
 func measurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		globallogger.Log.Infof("[devEUI: %v][measurementProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		if v.Status == cluster.ZclStatusSuccess {
 			measurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
@@ -33,8 +32,7 @@ func measurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{
 func measurementProcReport(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ReportAttributesCommand)
 	globallogger.Log.Infof("[devEUI: %v][measurementProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	attributeReports := Command.AttributeReports
-	for _, v := range attributeReports {
+	for _, v := range Command.AttributeReports {
 		measurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
 	}
 }

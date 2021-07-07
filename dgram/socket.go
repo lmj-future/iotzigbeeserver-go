@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/h3c/iotzigbeeserver-go/constant"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 )
 
@@ -36,7 +37,7 @@ func CreateUDPSocket(bindPort int) ServiceSocket {
 	//address := "127.0.0.1:8080"
 	//udpAddr, err := net.ResolveUDPAddr("udp4", address)
 	udpAddr := &net.UDPAddr{
-		IP:   net.IP{0, 0, 0, 0},
+		IP:   net.ParseIP(constant.Constant.LocalHost), //net.IP{0, 0, 0, 0},
 		Port: bindPort,
 	}
 	conn, err := net.ListenUDP("udp", udpAddr)
@@ -48,7 +49,7 @@ func CreateUDPSocket(bindPort int) ServiceSocket {
 
 	udpServer.UDPAddr = udpAddr
 	udpServer.UDPConn = conn
-	globallogger.Log.Infoln("CreateUDPSocket success:", udpServer)
+	globallogger.Log.Errorf("CreateUDPSocket success: %+v", udpServer)
 	return udpServer
 }
 
@@ -64,6 +65,17 @@ func (udps UDPServer) Send(sendBuf []byte, IPPort int, IPAddr string) error {
 		globallogger.Log.Errorln("send msg err:", err.Error())
 	}
 	return err
+	// conn, err := net.DialUDP("udp",
+	// 	&net.UDPAddr{IP: net.ParseIP(constant.Constant.LocalHost), Port: udps.UDPAddr.Port},
+	// 	&net.UDPAddr{IP: net.ParseIP(IPAddr), Port: IPPort})
+	// if err != nil {
+	// 	globallogger.Log.Errorln("send msg err:", err.Error())
+	// 	return err
+	// } else {
+	// 	defer conn.Close()
+	// 	conn.Write(sendBuf)
+	// 	return nil
+	// }
 }
 
 //On On

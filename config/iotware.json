@@ -17,9 +17,9 @@
   "postgresConnParas" : {
     "port" : "ENV_PUB_POSTGRESQL_PORT",
     "host" : "ENV_PUB_POSTGRESQL_HOST",
-    "userName" : "postgres",
-    "password" : "postgres",
-    "dbName" : "postgres",
+    "userName" : "iotware",
+    "password" : "iotware",
+    "dbName" : "iotware",
     "sslMode" : "disable"
   },
   "rabbitMQConnParas" : {
@@ -50,6 +50,7 @@
   "useKafka" : false,
   "useMQTT" : true,
   "iotware" : true,
+  "wcg" : false,
   "iotprivate" : false,
   "iotedge" : false,
   "logger" : {

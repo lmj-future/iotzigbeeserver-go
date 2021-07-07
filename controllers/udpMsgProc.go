@@ -18,12 +18,14 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalmsgtype"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalrediscache"
 	"github.com/h3c/iotzigbeeserver-go/interactmodule/iotsmartspace"
-	"github.com/h3c/iotzigbeeserver-go/metrics"
+
+	// "github.com/h3c/iotzigbeeserver-go/metrics"
 	"github.com/h3c/iotzigbeeserver-go/models"
 	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 	"github.com/h3c/iotzigbeeserver-go/publicstruct"
 	zclmain "github.com/h3c/iotzigbeeserver-go/zcl"
 	"github.com/h3c/iotzigbeeserver-go/zcl/common"
+	"github.com/h3c/iotzigbeeserver-go/zcl/keepalive"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/cluster"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/frame"
@@ -417,9 +419,11 @@ func findTerminalAndUpdate(jsonInfo publicstruct.JSONInfo) (*config.TerminalInfo
 				terminalInfo.T300ID != jsonInfo.TunnelHeader.LinkInfo.T300ID || terminalInfo.ModuleID != jsonInfo.MessagePayload.ModuleID ||
 				terminalInfo.UDPVersion != jsonInfo.TunnelHeader.Version {
 				isNeedUpdate = true
+				globallogger.Log.Errorf("findTerminalAndUpdate: key: %s, terminalInfo: %+v, jsonInfo: %+v", key, terminalInfo, jsonInfo)
 			}
 		} else {
 			isNeedUpdate = true
+			globallogger.Log.Errorf("findTerminalAndUpdate: key: %s, LoadTerminalInfoListCache not ok", key)
 		}
 		if isNeedUpdate {
 			terminalInfo, err = findTerminalAndUpdateSame(jsonInfo)
@@ -437,7 +441,7 @@ func procMainMsg(jsonInfo publicstruct.JSONInfo) {
 	if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeTerminalJoinEvent {
 		//设备入网
 		procTerminalJoinEvent(jsonInfo)
-		metrics.CountUdpReceiveByLabel("ZigbeeTerminalJoinEvent")
+		// metrics.CountUdpReceiveByLabel("ZigbeeTerminalJoinEvent")
 	} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeWholeNetworkIEEERspEvent {
 		//整个网络拓扑获取
 	} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeNetworkEvent {
@@ -445,11 +449,11 @@ func procMainMsg(jsonInfo publicstruct.JSONInfo) {
 	} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeModuleRemoveEvent {
 		//插卡下线事件
 		procModuleRemoveEvent(jsonInfo)
-		metrics.CountUdpReceiveByLabel("ZigbeeModuleRemoveEvent")
+		// metrics.CountUdpReceiveByLabel("ZigbeeModuleRemoveEvent")
 	} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeEnvironmentChangeEvent {
 		//网络发生改变事件
 		procEnvironmentChangeEvent(jsonInfo)
-		metrics.CountUdpReceiveByLabel("ZigbeeEnvironmentChangeEvent")
+		// metrics.CountUdpReceiveByLabel("ZigbeeEnvironmentChangeEvent")
 	} else if jsonInfo.TunnelHeader.Version == constant.Constant.UDPVERSION.Version0102 &&
 		jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.UPMsg.ZigbeeTerminalLeaveEvent {
 		//设备离网
@@ -492,7 +496,7 @@ func procMainMsg(jsonInfo publicstruct.JSONInfo) {
 		if err == nil && terminalInfo != nil {
 			procTerminalLeaveEvent(jsonInfo)
 		}
-		metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveEvent")
+		// metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveEvent")
 	} else {
 		terminalInfo, err := findTerminalAndUpdate(jsonInfo)
 		if err == nil {
@@ -502,15 +506,15 @@ func procMainMsg(jsonInfo publicstruct.JSONInfo) {
 					globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralFailedV0101:
 					//处理失败消息
 					procFailedMsg(jsonInfo, terminalInfo.DevEUI, true)
-					metrics.CountUdpReceiveByLabel("ZigbeeGeneralFailed")
+					// metrics.CountUdpReceiveByLabel("ZigbeeGeneralFailed")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalCheckExistRspEvent:
 					//检查存在否回复
 					procTerminalCheckExistEvent(jsonInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalCheckExistRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalCheckExistRspEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalLeaveEvent:
 					//设备离网
 					procTerminalLeaveEvent(jsonInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeDataUpEvent:
 					//设备数据上报
 					procDataUp(jsonInfo, *terminalInfo)
@@ -523,37 +527,40 @@ func procMainMsg(jsonInfo publicstruct.JSONInfo) {
 						} else if constant.Constant.Iotedge {
 							iotsmartspace.StateTerminalOnline(terminalInfo.DevEUI)
 						}
+						if terminalInfo.Interval != 0 {
+							keepalive.ProcKeepAlive(*terminalInfo, uint16(terminalInfo.Interval))
+						}
 					}
-					metrics.CountUdpReceiveByLabel("ZigbeeDataUpEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeDataUpEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeWholeNetworkNWKRspEvent:
 					//单个网络拓扑获取
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalEndpointRspEvent:
 					//设备端口号上报
 					procTerminalEndpointInfoUp(jsonInfo, *terminalInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalEndpointRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalEndpointRspEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalDiscoveryRspEvent:
 					//设备服务发现回复
 					procTerminalDiscoveryInfoUp(jsonInfo, *terminalInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalDiscoveryRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalDiscoveryRspEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalBindRspEvent,
 					globalmsgtype.MsgType.UPMsg.ZigbeeTerminalUnbindRspEvent:
 					//绑定/解绑回复
 					procBindOrUnbindTerminalRsp(jsonInfo, *terminalInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalBindRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalBindRspEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalNetworkRspEvent:
 					//设备邻居网络拓扑上报
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalLeaveRspEvent:
 					//设备离网回复
 					procTerminalLeaveRsp(jsonInfo, terminalInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalLeaveRspEvent")
 				case globalmsgtype.MsgType.UPMsg.ZigbeeTerminalPermitJoinRspEvent:
 					//允许设备入网回复
 					procTerminalPermitJoinRsp(jsonInfo, *terminalInfo)
-					metrics.CountUdpReceiveByLabel("ZigbeeTerminalPermitJoinRspEvent")
+					// metrics.CountUdpReceiveByLabel("ZigbeeTerminalPermitJoinRspEvent")
 				default:
 					globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "unknow msgType :", jsonInfo.MessageHeader.MsgType)
 				}
-				metrics.CountUdpReceiveByDevSN(terminalInfo.DevEUI)
+				// metrics.CountUdpReceiveByDevSN(terminalInfo.DevEUI)
 			}
 		}
 	}
@@ -700,6 +707,14 @@ func procTerminalJoinEvent(jsonInfo publicstruct.JSONInfo) {
 	var CapabilityFlags = strings.Repeat(jsonInfo.MessagePayload.Data[20:22], 1) //设备功能、性能标记
 	var Type = strings.Repeat(jsonInfo.MessagePayload.Data[22:24], 1)            //设备入网方式
 	devEUI = strings.ToUpper(strings.Repeat(jsonInfo.MessagePayload.Data[4:20], 1))
+	res, _ := saveMsgDuplicationFlag(devEUI+jsonInfo.TunnelHeader.LinkInfo.APMac, jsonInfo.MessageHeader.MsgType, NwkAddr, false)
+	if res != "toDo" {
+		globallogger.Log.Warnln("devEUI :", devEUI, "procTerminalJoinEvent this join is rejoin and nwkAddr is not change, do nothing")
+		return
+	}
+	// time.Sleep(2 * time.Second)
+	// publicfunction.SendWholeNetworkIEEE(setData)
+	time.Sleep(3 * time.Second)
 
 	var oMatch = map[string]interface{}{}
 	oMatch["devEUI"] = devEUI
@@ -983,6 +998,9 @@ func procBasicReadRsp(devEUI string, jsonInfo publicstruct.JSONInfo, terminalInf
 	if basicInfo.ModelIdentifier == "FTB56+PTH01MK2.2" {
 		basicInfo.ModelIdentifier = constant.Constant.TMNTYPE.MAILEKE.ZigbeeTerminalPMT1004Detector
 	}
+	if basicInfo.ModelIdentifier == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106 {
+		basicInfo.ModelIdentifier = constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55
+	}
 	if basicInfo.ManufacturerName == "Feibit,co.ltd   " {
 		basicInfo.ManufacturerName = "DINAIKE"
 	}
@@ -1044,13 +1062,13 @@ func procBasicReadRsp(devEUI string, jsonInfo publicstruct.JSONInfo, terminalInf
 		}
 		if !constant.Constant.Iotware {
 			if constant.Constant.Iotprivate {
-				thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo)
+				thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo, jsonInfo)
 			} else {
 				if terminalInfo.IsExist {
 					if constant.Constant.UsePostgres {
-						thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo)
+						thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo, jsonInfo)
 					} else {
-						thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo)
+						thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo, jsonInfo)
 					}
 					return
 				}
@@ -1084,9 +1102,9 @@ func procBasicReadRsp(devEUI string, jsonInfo publicstruct.JSONInfo, terminalInf
 				}
 				if tmnType == basicInfo.ModelIdentifier {
 					if constant.Constant.UsePostgres {
-						thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo)
+						thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo, jsonInfo)
 					} else {
-						thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo)
+						thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo, jsonInfo)
 					}
 				} else {
 					globallogger.Log.Warnln("devEUI :", devEUI, "procBasicReadRsp tmnType is not match, real tmnType:",
@@ -1096,9 +1114,9 @@ func procBasicReadRsp(devEUI string, jsonInfo publicstruct.JSONInfo, terminalInf
 			}
 		} else {
 			if constant.Constant.UsePostgres {
-				thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo)
+				thirdlyDiscoveryByEndpointPG(devEUI, oSet, terminalInfo, jsonInfo)
 			} else {
-				thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo)
+				thirdlyDiscoveryByEndpoint(devEUI, setData, terminalInfo, jsonInfo)
 			}
 		}
 	} else {

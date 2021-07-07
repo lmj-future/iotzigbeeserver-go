@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,8 +23,6 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalredisclient"
 	"github.com/h3c/iotzigbeeserver-go/httpapi"
 	"github.com/h3c/iotzigbeeserver-go/interactmodule/iotsmartspace"
-	"github.com/h3c/iotzigbeeserver-go/models"
-	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 	"github.com/h3c/iotzigbeeserver-go/rabbitmqmsg/consumer"
 	"github.com/h3c/iotzigbeeserver-go/zcl/common"
 )
@@ -58,7 +59,7 @@ func connectToRedis() error {
 		globallogger.Log.Errorln("couldn't create redis client:", err.Error())
 		return err
 	}
-	globallogger.Log.Infoln("create redis client sucess")
+	globallogger.Log.Errorf("create redis client sucess: %+v", globalredisclient.MyZigbeeServerRedisClient)
 	return nil
 }
 
@@ -86,7 +87,7 @@ func keepAliveMongoDB(mongoURL string, client *mongo.Client) {
 			if err != nil {
 				globallogger.Log.Errorln("[MongoDB][KeepAlive] couldn't open mongo:", err.Error())
 			} else {
-				globallogger.Log.Warnf("[MongoDB][KeepAlive] connect success: %+v", mongo.MongoClient)
+				globallogger.Log.Errorf("[MongoDB][KeepAlive] connect success: %+v", mongo.MongoClient)
 			}
 		} else {
 			globallogger.Log.Warnf("[MongoDB][KeepAlive] Ping success")
@@ -123,7 +124,7 @@ func connectToMongoDB() error {
 		go reConnectMongoDB(mongoURL)
 		return err
 	}
-	globallogger.Log.Infof("[Mongodb] connect success: %+v", client)
+	globallogger.Log.Errorf("[Mongodb] connect success: %+v", client)
 	mongo.MongoClient = client
 	go keepAliveMongoDB(mongoURL, client)
 	return nil
@@ -203,42 +204,63 @@ func connectToKafka(kafkaConnParas map[string]interface{}) {
 	addrs = append(addrs, host1+":"+port1)
 	addrs = append(addrs, host2+":"+port2)
 	addrs = append(addrs, host3+":"+port3)
-	kafka.Client = kafka.NewClient(addrs)
+	kafka.NewClient(addrs)
 }
 
-func terminalStateSmooth() {
-	var oMatch = map[string]interface{}{}
-	var oMatchPG = map[string]interface{}{}
-	oMatch["isExist"] = true
-	oMatchPG["isexist"] = true
-	var terminalList []config.TerminalInfo
-	var err error
-	if constant.Constant.UsePostgres {
-		terminalList, err = models.FindAllTerminalByConditionPG(oMatchPG)
-	} else {
-		terminalList, err = models.FindAllTerminalByCodition(oMatch)
-	}
-	if err == nil {
-		for _, terminalInfo := range terminalList {
-			if terminalInfo.Online {
-				publicfunction.TerminalOnline(terminalInfo.DevEUI, false)
-				if constant.Constant.Iotware {
-					iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
-				} else if constant.Constant.Iotedge {
-					iotsmartspace.StateTerminalOnline(terminalInfo.DevEUI)
-				}
-			} else {
-				publicfunction.TerminalOffline(terminalInfo.DevEUI)
-				if constant.Constant.Iotware {
-					iotsmartspace.StateTerminalOfflineIotware(terminalInfo)
-				} else if constant.Constant.Iotedge {
-					iotsmartspace.StateTerminalOffline(terminalInfo.DevEUI)
+// func terminalStateSmooth() {
+// 	var oMatch = map[string]interface{}{}
+// 	var oMatchPG = map[string]interface{}{}
+// 	oMatch["isExist"] = true
+// 	oMatchPG["isexist"] = true
+// 	var terminalList []config.TerminalInfo
+// 	var err error
+// 	if constant.Constant.UsePostgres {
+// 		terminalList, err = models.FindAllTerminalByConditionPG(oMatchPG)
+// 	} else {
+// 		terminalList, err = models.FindAllTerminalByCodition(oMatch)
+// 	}
+// 	if err == nil {
+// 		for _, terminalInfo := range terminalList {
+// 			if terminalInfo.Online {
+// 				publicfunction.TerminalOnline(terminalInfo.DevEUI, false)
+// 				if constant.Constant.Iotware {
+// 					iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
+// 				} else if constant.Constant.Iotedge {
+// 					iotsmartspace.StateTerminalOnline(terminalInfo.DevEUI)
+// 				}
+// 			} else {
+// 				publicfunction.TerminalOffline(terminalInfo.DevEUI)
+// 				if constant.Constant.Iotware {
+// 					iotsmartspace.StateTerminalOfflineIotware(terminalInfo)
+// 				} else if constant.Constant.Iotedge {
+// 					iotsmartspace.StateTerminalOffline(terminalInfo.DevEUI)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
+func getLocalHost() {
+	if constant.Constant.Wcg {
+		constant.Constant.LocalHost = "172.25.252.9"
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			os.Exit(1)
+		}
+		for _, address := range addrs {
+			globallogger.Log.Errorln(address)
+			// 检查ip地址判断是否回环地址
+			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					if ipnet.IP.String() == "172.25.252.9" {
+						constant.Constant.LocalHost = ipnet.IP.String()
+					}
 				}
 			}
 		}
+	} else {
+		constant.Constant.LocalHost = "0.0.0.0"
 	}
 }
-
 func main() {
 	// err := config.LoadJSON("./config/default.json", &defaultConfigs)
 	err := config.LoadJSON("./config/production.json", &defaultConfigs)
@@ -246,7 +268,7 @@ func main() {
 		panic(err)
 	}
 	loggerInit()
-	globallogger.Log.Infoln("**************** h3c-zigbeeserver start ****************")
+	globallogger.Log.Errorln("**************** h3c-zigbeeserver start ****************")
 
 	/* 连接数据库 */
 	if defaultConfigs["usePostgres"].(bool) {
@@ -273,11 +295,20 @@ func main() {
 	if defaultConfigs["useKafka"].(bool) {
 		/* 连接kafka */
 		connectToKafka(defaultConfigs["kafkaConnParas"].(map[string]interface{}))
-		group := kafka.Consumer()
-		defer group.Close()
+		go func() {
+			for {
+				if kafka.GetConnectFlag() {
+					kafka.Consumer()
+					kafka.SetConnectFlag(false)
+				}
+				time.Sleep(time.Minute)
+			}
+		}()
 	}
 	/* 初始化表项 */
 	datainit.IotzigbeeserverDataInit()
+	/* 获取本地地址 */
+	getLocalHost()
 	/* UDP监听 */
 	controllers.CreateUDPServer(int(defaultConfigs["udpPort"].(float64)))
 	/* HTTP API */
@@ -288,8 +319,15 @@ func main() {
 			if mqtt.GetConnectFlag() {
 				/* MQTT订阅消息 */
 				subscribeFromMQTT()
-				terminalStateSmooth()
 				mqtt.SetConnectFlag(false)
+				// go func() {
+				// 	var timer = time.NewTimer(5 * time.Minute)
+				// 	defer timer.Stop()
+				// 	<-timer.C
+				// 	if !mqtt.GetConnectFlag() {
+				// 		terminalStateSmooth()
+				// 	}
+				// }()
 			}
 			time.Sleep(time.Minute)
 		}
@@ -314,20 +352,24 @@ func main() {
 	// 	}()
 	// }
 
-	// go func() {
-	// 	http.ListenAndServe("0.0.0.0:8080", nil)
-	// }()
+	go func() {
+		http.ListenAndServe("0.0.0.0:80", nil)
+	}()
 
-	wait(defaultConfigs["multipleInstances"].(bool))
-	globallogger.Log.Infoln("**************** h3c-zigbeeserver exit ****************")
+	wait(defaultConfigs["multipleInstances"].(bool), defaultConfigs["useKafka"].(bool))
+	globallogger.Log.Errorln("**************** h3c-zigbeeserver exit ****************")
 }
 
-func wait(multipleInstances bool) { //<-chan os.Signal
+func wait(multipleInstances bool, useKafka bool) { //<-chan os.Signal
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
 	<-sig
 	if multipleInstances {
 		globalredisclient.MyZigbeeServerRedisClient.CloseSession()
+	}
+	if useKafka {
+		kafka.Group.Close()
+		kafka.Produce.AsyncClose()
 	}
 }

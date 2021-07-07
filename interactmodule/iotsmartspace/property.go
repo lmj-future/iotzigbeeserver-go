@@ -144,15 +144,29 @@ func honyarSocketCommandDown(devEUI string, value string, msgID interface{}, com
 }
 
 // heimanWarningDeviceProcAlarm 处理clusterID 0x0502
-func heimanWarningDeviceProcAlarm(devEUI string, alarmTime string, alarmStart string, msgID interface{}) {
-	globallogger.Log.Infof("[devEUI: %v][heimanWarningDeviceProcAlarm] alarmTime: %s, alarmStart: %s", devEUI, alarmTime, alarmStart)
+func heimanWarningDeviceProcAlarm(devEUI string, alarmTime string, alarmStart string, warningMode float64, msgID interface{}) {
+	globallogger.Log.Infof("[devEUI: %v][heimanWarningDeviceProcAlarm] alarmTime: %s, alarmStart: %s, warningMode: %v", devEUI, alarmTime, alarmStart, warningMode)
 	time, err := strconv.ParseUint(alarmTime, 10, 16)
 	if err != nil {
 		globallogger.Log.Errorf("[devEUI: %v][heimanWarningDeviceProcAlarm] ParseUint time err: %+v", devEUI, err)
 	}
-	var warningControl uint8 = 0x0000
+	var warningControl uint8 = 0x03
 	if alarmStart == "0" {
-		warningControl = 0x0014
+		warningControl = 0x17
+		switch warningMode {
+		case 1: // Burglar
+			warningControl = 0x17
+		case 2: // Fire
+			warningControl = 0x27
+		case 3: // Emergency
+			warningControl = 0x37
+		case 4: // Police panic
+			warningControl = 0x47
+		case 5: // Fire panic
+			warningControl = 0x57
+		case 6: // Emergency panic
+			warningControl = 0x67
+		}
 	}
 	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
@@ -163,6 +177,29 @@ func heimanWarningDeviceProcAlarm(devEUI string, alarmTime string, alarmStart st
 			DstEndpointIndex: 0,
 			WarningControl:   warningControl,
 			WarningTime:      uint16(time),
+		},
+		MsgID: msgID,
+	})
+}
+
+// heimanWarningDeviceProcArmed 处理clusterID 0x0502
+func heimanWarningDeviceProcArmed(devEUI string, warningMode float64, msgID interface{}) {
+	globallogger.Log.Infof("[devEUI: %v][heimanWarningDeviceProcArmed] warningMode: %v", devEUI, warningMode)
+	var squawkMode uint8
+	switch warningMode {
+	case 0: // armed
+		squawkMode = 0x03
+	case 1: // disarmed
+		squawkMode = 0x13
+	}
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
+		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+		DevEUI:      devEUI,
+		CommandType: common.Squawk,
+		ClusterID:   0x0502,
+		Command: common.Command{
+			DstEndpointIndex: 0,
+			SquawkMode:       squawkMode,
 		},
 		MsgID: msgID,
 	})
@@ -475,272 +512,118 @@ func heimanHS2AQSetUnitOfTemperature(devEUI string, unitOfTemperature uint8, msg
 // procPropertyIotware 处理属性消息
 func procPropertyIotware(mqttMsg publicstruct.RPCIotware) {
 	globallogger.Log.Infof("[procPropertyIotware]: mqttMsg.Data.Params: %+v", mqttMsg.Data.Params)
-	mapParams := mqttMsg.Data.Params.(map[string]interface{})
 	switch mqttMsg.Data.Method {
-	case IotwarePropertyOnOff:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyOnOff:
-				if value.(string) == "00" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID)
-				} else if value.(string) == "01" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodPowerSwitch:
+		if mqttMsg.Data.Params.PowerSwitch {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID)
+		} else {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID)
 		}
-	case IotwarePropertyOnOffOne:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyOnOffOne:
-				if value.(string) == "00" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID)
-				} else if value.(string) == "01" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodPowerSwitch_1:
+		if mqttMsg.Data.Params.PowerSwitch_1 {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID)
+		} else {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID)
 		}
-	case IotwarePropertyOnOffTwo:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyOnOffTwo:
-				if value.(string) == "00" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "20", mqttMsg.Data.ID)
-				} else if value.(string) == "01" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "21", mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodPowerSwitch_2:
+		if mqttMsg.Data.Params.PowerSwitch_2 {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "21", mqttMsg.Data.ID)
+		} else {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "20", mqttMsg.Data.ID)
 		}
-	case IotwarePropertyOnOffThree:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyOnOffThree:
-				if value.(string) == "00" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "30", mqttMsg.Data.ID)
-				} else if value.(string) == "01" {
-					genOnOffSwitchCommandDown(mqttMsg.Device, "31", mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodPowerSwitch_3:
+		if mqttMsg.Data.Params.PowerSwitch_3 {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "31", mqttMsg.Data.ID)
+		} else {
+			genOnOffSwitchCommandDown(mqttMsg.Device, "30", mqttMsg.Data.ID)
 		}
-	case IotwarePropertyDownWarning:
-		for key, value := range mapParams {
-			switch key {
-			case "time":
-				heimanWarningDeviceProcAlarm(mqttMsg.Device, strconv.FormatUint(uint64(value.(uint16)), 10), "0", mqttMsg.Data.ID)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodActiveAlarm:
+		heimanWarningDeviceProcAlarm(mqttMsg.Device, strconv.FormatUint(uint64(mqttMsg.Data.Params.Time), 10), "0", mqttMsg.Data.Params.WarningMode, mqttMsg.Data.ID)
+	case IotwarePropertyMethodClearAlarm:
+		heimanWarningDeviceProcAlarm(mqttMsg.Device, "1", "1", 0, mqttMsg.Data.ID)
+	case IotwarePropertyMethodArmed:
+		heimanWarningDeviceProcArmed(mqttMsg.Device, 0, mqttMsg.Data.ID)
+	case IotwarePropertyMethodDisarmed:
+		heimanWarningDeviceProcArmed(mqttMsg.Device, 1, mqttMsg.Data.ID)
+	case IotwarePropertyMethodTemperatureThreshold:
+		heimanTemperatureAlarmThresholdSet(mqttMsg.Device,
+			strconv.FormatUint(uint64(mqttMsg.Data.Params.Lower), 10)+","+strconv.FormatUint(uint64(mqttMsg.Data.Params.Upper), 10), mqttMsg.Data.ID)
+	case IotwarePropertyMethodHumidityThreshold:
+		heimanHumidityAlarmThresholdSet(mqttMsg.Device,
+			strconv.FormatUint(uint64(mqttMsg.Data.Params.Lower), 10)+","+strconv.FormatUint(uint64(mqttMsg.Data.Params.Upper), 10), mqttMsg.Data.ID)
+	case IotwarePropertyMethodNoDisturb:
+		if mqttMsg.Data.Params.NoDisturb {
+			heimanDisturbAlarmThresholdSet(mqttMsg.Device, "1", mqttMsg.Data.ID)
+		} else {
+			heimanDisturbAlarmThresholdSet(mqttMsg.Device, "0", mqttMsg.Data.ID)
 		}
-	case IotwarePropertyClearWarning:
-		heimanWarningDeviceProcAlarm(mqttMsg.Device, "1", "1", mqttMsg.Data.ID)
-	case IotwarePropertyTThreshold:
-		var lower uint16
-		var upper uint16
-		for key, value := range mapParams {
-			switch key {
-			case "lower":
-				lower = value.(uint16)
-			case "upper":
-				upper = value.(uint16)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanTemperatureAlarmThresholdSet(mqttMsg.Device, strconv.FormatUint(uint64(lower), 10)+","+strconv.FormatUint(uint64(upper), 10), mqttMsg.Data.ID)
-	case IotwarePropertyHThreshold:
-		var lower uint16
-		var upper uint16
-		for key, value := range mapParams {
-			switch key {
-			case "lower":
-				lower = value.(uint16)
-			case "upper":
-				upper = value.(uint16)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanHumidityAlarmThresholdSet(mqttMsg.Device, strconv.FormatUint(uint64(lower), 10)+","+strconv.FormatUint(uint64(upper), 10), mqttMsg.Data.ID)
-	case IotwarePropertyNotDisturb:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyNotDisturb:
-				heimanDisturbAlarmThresholdSet(mqttMsg.Device, value.(string), mqttMsg.Data.ID)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-	case IotwarePropertySendKeyCommand:
-		var IRId uint8 = 0xff
-		var keyCode uint8 = 0xff
-		for key, value := range mapParams {
-			switch key {
-			case "IRId":
-				IRId = value.(uint8)
-			case "keyCode":
-				keyCode = value.(uint8)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanIRControlEMSendKeyCommand(mqttMsg.Device, cluster.HEIMANInfraredRemoteSendKeyCommand{ID: IRId, KeyCode: keyCode}, mqttMsg.Data.ID)
-	case IotwarePropertyStudyKey:
-		var IRId uint8 = 0xff
-		var keyCode uint8 = 0xff
-		for key, value := range mapParams {
-			switch key {
-			case "IRId":
-				IRId = value.(uint8)
-			case "keyCode":
-				keyCode = value.(uint8)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanIRControlEMStudyKey(mqttMsg.Device, cluster.HEIMANInfraredRemoteStudyKey{ID: IRId, KeyCode: keyCode}, mqttMsg.Data.ID)
-	case IotwarePropertyDeleteKey:
-		var IRId uint8 = 0xff
-		var keyCode uint8 = 0xff
-		for key, value := range mapParams {
-			switch key {
-			case "IRId":
-				IRId = value.(uint8)
-			case "keyCode":
-				keyCode = value.(uint8)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanIRControlEMDeleteKey(mqttMsg.Device, cluster.HEIMANInfraredRemoteDeleteKey{ID: IRId, KeyCode: keyCode}, mqttMsg.Data.ID)
-	case IotwarePropertyCreateID:
-		var modelType uint8
-		for key, value := range mapParams {
-			switch key {
-			case "modelType":
-				modelType = value.(uint8)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-		heimanIRControlEMCreateID(mqttMsg.Device, cluster.HEIMANInfraredRemoteCreateID{ModelType: modelType}, mqttMsg.Data.ID)
-	case IotwarePropertyGetIDAndKeyCodeList:
+	case IotwarePropertyMethodDownControl:
+		heimanIRControlEMSendKeyCommand(mqttMsg.Device,
+			cluster.HEIMANInfraredRemoteSendKeyCommand{ID: uint8(mqttMsg.Data.Params.IRId), KeyCode: uint8(mqttMsg.Data.Params.KeyCode)}, mqttMsg.Data.ID)
+	case IotwarePropertyMethodLearnControl:
+		heimanIRControlEMStudyKey(mqttMsg.Device,
+			cluster.HEIMANInfraredRemoteStudyKey{ID: uint8(mqttMsg.Data.Params.IRId), KeyCode: uint8(mqttMsg.Data.Params.KeyCode)}, mqttMsg.Data.ID)
+	case IotwarePropertyMethodDeleteControl:
+		heimanIRControlEMDeleteKey(mqttMsg.Device,
+			cluster.HEIMANInfraredRemoteDeleteKey{ID: uint8(mqttMsg.Data.Params.IRId), KeyCode: uint8(mqttMsg.Data.Params.KeyCode)}, mqttMsg.Data.ID)
+	case IotwarePropertyMethodCreateModelType:
+		heimanIRControlEMCreateID(mqttMsg.Device,
+			cluster.HEIMANInfraredRemoteCreateID{ModelType: uint8(mqttMsg.Data.Params.ModelType)}, mqttMsg.Data.ID)
+	case IotwarePropertyMethodGetDevAndCmdList:
 		heimanIRControlEMGetIDAndKeyCodeList(mqttMsg.Device, cluster.HEIMANInfraredRemoteGetIDAndKeyCodeList{}, mqttMsg.Data.ID)
-	case IotwarePropertyChildLock:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyChildLock:
-				if value.(string) == "00" {
-					honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.ChildLock)
-				} else if value.(string) == "01" {
-					honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.ChildLock)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodChildLockSwitch:
+		if mqttMsg.Data.Params.ChildLockSwitch {
+			honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.ChildLock)
+		} else {
+			honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.ChildLock)
 		}
-	case IotwarePropertyUSBSwitch:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyUSBSwitch:
-				if value.(string) == "00" {
-					honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.OnOffUSB)
-				} else if value.(string) == "01" {
-					honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.OnOffUSB)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodUSBSwitch_1:
+		if mqttMsg.Data.Params.USBSwitch_1 {
+			honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.OnOffUSB)
+		} else {
+			honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.OnOffUSB)
 		}
-	case IotwarePropertyBackLightSwitch:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyBackLightSwitch:
-				if value.(string) == "00" {
-					honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.BackGroundLight)
-				} else if value.(string) == "01" {
-					honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.BackGroundLight)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodBackLightSwitch:
+		if mqttMsg.Data.Params.BackLightSwitch {
+			honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.BackGroundLight)
+		} else {
+			honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.BackGroundLight)
 		}
-	case IotwarePropertyMemorySwitch:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyMemorySwitch:
-				if value.(string) == "00" {
-					honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.PowerOffMemory)
-				} else if value.(string) == "01" {
-					honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.PowerOffMemory)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodMemorySwitch:
+		if mqttMsg.Data.Params.MemorySwitch {
+			honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.PowerOffMemory)
+		} else {
+			honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.PowerOffMemory)
 		}
-	case IotwarePropertyHistoryClear:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyHistoryClear:
-				if value.(string) == "0" {
-					honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.HistoryElectricClear)
-				} else if value.(string) == "1" {
-					honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.HistoryElectricClear)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodClearHistory:
+		if mqttMsg.Data.Params.ClearHistory == "1" {
+			honyarSocketCommandDown(mqttMsg.Device, "11", mqttMsg.Data.ID, common.HistoryElectricClear)
+		} else {
+			honyarSocketCommandDown(mqttMsg.Device, "10", mqttMsg.Data.ID, common.HistoryElectricClear)
 		}
-	case IotwarePropertySwitchLeftUpLogo,
-		IotwarePropertySwitchLeftMidLogo,
-		IotwarePropertySwitchLeftDownLogo,
-		IotwarePropertySwitchRightUpLogo,
-		IotwarePropertySwitchRightMidLogo,
-		IotwarePropertySwitchRightDownLogo:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertySwitchLeftUpLogo,
-				IotwarePropertySwitchLeftMidLogo,
-				IotwarePropertySwitchLeftDownLogo,
-				IotwarePropertySwitchRightUpLogo,
-				IotwarePropertySwitchRightMidLogo,
-				IotwarePropertySwitchRightDownLogo:
-				honyarAddSceneCommandDown(mqttMsg.Device, value.(string), mqttMsg.Data.ID, key, common.AddScene)
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodSwitchLeftUpLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchLeftUpLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchLeftUpLogo, common.AddScene)
+	case IotwarePropertyMethodSwitchLeftMidLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchLeftMidLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchLeftMidLogo, common.AddScene)
+	case IotwarePropertyMethodSwitchLeftDownLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchLeftDownLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchLeftDownLogo, common.AddScene)
+	case IotwarePropertyMethodSwitchRightUpLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchRightUpLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchRightUpLogo, common.AddScene)
+	case IotwarePropertyMethodSwitchRightMidLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchRightMidLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchRightMidLogo, common.AddScene)
+	case IotwarePropertyMethodSwitchRightDownLogo:
+		honyarAddSceneCommandDown(mqttMsg.Device, mqttMsg.Data.Params.SwitchRightDownLogo, mqttMsg.Data.ID, IotwarePropertyMethodSwitchRightDownLogo, common.AddScene)
+	case IotwarePropertyMethodLanguage:
+		if mqttMsg.Data.Params.Language == "0" {
+			heimanHS2AQSetLanguage(mqttMsg.Device, 0x00, mqttMsg.Data.ID)
+		} else if mqttMsg.Data.Params.Language == "1" {
+			heimanHS2AQSetLanguage(mqttMsg.Device, 0x01, mqttMsg.Data.ID)
 		}
-	case IotwarePropertyLanguage:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyLanguage:
-				if value.(string) == "0" {
-					heimanHS2AQSetLanguage(mqttMsg.Device, 0x00, mqttMsg.Data.ID)
-				} else if value.(string) == "1" {
-					heimanHS2AQSetLanguage(mqttMsg.Device, 0x01, mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
-		}
-	case IotwarePropertyUnitOfTemperature:
-		for key, value := range mapParams {
-			switch key {
-			case IotwarePropertyUnitOfTemperature:
-				if value.(string) == "0" {
-					heimanHS2AQSetUnitOfTemperature(mqttMsg.Device, 0x01, mqttMsg.Data.ID)
-				} else if value.(string) == "1" {
-					heimanHS2AQSetUnitOfTemperature(mqttMsg.Device, 0x00, mqttMsg.Data.ID)
-				}
-			default:
-				globallogger.Log.Warnf("[procPropertyIotware]: invalid key: %s", key)
-			}
+	case IotwarePropertyMethodUnitOfTemperature:
+		if mqttMsg.Data.Params.UnitOfTemperature == "0" {
+			heimanHS2AQSetUnitOfTemperature(mqttMsg.Device, 0x01, mqttMsg.Data.ID)
+		} else if mqttMsg.Data.Params.UnitOfTemperature == "1" {
+			heimanHS2AQSetUnitOfTemperature(mqttMsg.Device, 0x00, mqttMsg.Data.ID)
 		}
 	default:
 		globallogger.Log.Warnf("[procPropertyIotware]: invalid method: %s", mqttMsg.Data.Method)
@@ -758,47 +641,47 @@ func procProperty(mqttMsg mqttMsgSt) {
 			continue
 		}
 		switch key {
-		case HeimanSmartPlugPropertyOnOff:
+		case HeimanSmartPlugPropertyKeyOnOff:
 			fallthrough
-		case HeimanESocketPropertyOnOff, HonyarSocket000a0c3cPropertyOnOff,
-			HonyarSocketHY0105PropertyOnOff, HonyarSocketHY0106PropertyOnOff:
+		case HeimanESocketPropertyKeyOnOff, HonyarSocket000a0c3cPropertyKeyOnOff,
+			HonyarSocketHY0105PropertyKeyOnOff, HonyarSocketHY0106PropertyKeyOnOff:
 			globallogger.Log.Errorf("[devEUI: %v][procProperty] subscribe time: %+v", mapParams["terminalId"], time.Now())
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID)
 			}
-		case HeimanHS2SW1LEFR30PropertyOnOff1, HonyarSingleSwitch00500c32PropertyOnOff1:
+		case HeimanHS2SW1LEFR30PropertyKeyOnOff1, HonyarSingleSwitch00500c32PropertyKeyOnOff1:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID)
 			}
-		case HeimanHS2SW2LEFR30PropertyOnOff1, HonyarDoubleSwitch00500c33PropertyOnOff1:
+		case HeimanHS2SW2LEFR30PropertyKeyOnOff1, HonyarDoubleSwitch00500c33PropertyKeyOnOff1:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID)
 			}
-		case HeimanHS2SW2LEFR30PropertyOnOff2, HonyarDoubleSwitch00500c33PropertyOnOff2:
+		case HeimanHS2SW2LEFR30PropertyKeyOnOff2, HonyarDoubleSwitch00500c33PropertyKeyOnOff2:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "20", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "21", mqttMsg.ID)
 			}
-		case HeimanHS2SW3LEFR30PropertyOnOff1, HonyarTripleSwitch00500c35PropertyOnOff1:
+		case HeimanHS2SW3LEFR30PropertyKeyOnOff1, HonyarTripleSwitch00500c35PropertyKeyOnOff1:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID)
 			}
-		case HeimanHS2SW3LEFR30PropertyOnOff2, HonyarTripleSwitch00500c35PropertyOnOff2:
+		case HeimanHS2SW3LEFR30PropertyKeyOnOff2, HonyarTripleSwitch00500c35PropertyKeyOnOff2:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "20", mqttMsg.ID)
 			} else if value.(string) == "01" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "21", mqttMsg.ID)
 			}
-		case HeimanHS2SW3LEFR30PropertyOnOff3, HonyarTripleSwitch00500c35PropertyOnOff3:
+		case HeimanHS2SW3LEFR30PropertyKeyOnOff3, HonyarTripleSwitch00500c35PropertyKeyOnOff3:
 			if value.(string) == "00" {
 				genOnOffSwitchCommandDown(mapParams["terminalId"].(string), "30", mqttMsg.ID)
 			} else if value.(string) == "01" {
@@ -807,69 +690,69 @@ func procProperty(mqttMsg mqttMsgSt) {
 		case HeimanWarningDevicePropertyAlarmTime:
 			alarmTime = value.(string)
 			if alarmStart != "" {
-				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, mqttMsg.ID)
+				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, 1, mqttMsg.ID)
 			}
 		case HeimanWarningDevicePropertyAlarmStart:
 			alarmStart = value.(string)
 			if alarmTime != "" {
-				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, mqttMsg.ID)
+				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, 1, mqttMsg.ID)
 			}
 			if alarmStart == "1" {
 				alarmTime = "1"
-				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, mqttMsg.ID)
+				heimanWarningDeviceProcAlarm(mapParams["terminalId"].(string), alarmTime, alarmStart, 0, mqttMsg.ID)
 			}
-		case HeimanHS2AQPropertyTemperatureAlarmThreshold:
+		case HeimanHS2AQPropertyKeyTemperatureAlarmThreshold:
 			heimanTemperatureAlarmThresholdSet(mapParams["terminalId"].(string), value.(string), mqttMsg.ID)
-		case HeimanHS2AQPropertyHumidityAlarmThreshold:
+		case HeimanHS2AQPropertyKeyHumidityAlarmThreshold:
 			heimanHumidityAlarmThresholdSet(mapParams["terminalId"].(string), value.(string), mqttMsg.ID)
-		case HeimanHS2AQPropertyUnDisturb:
+		case HeimanHS2AQPropertyKeyUnDisturb:
 			heimanDisturbAlarmThresholdSet(mapParams["terminalId"].(string), value.(string), mqttMsg.ID)
-		case HeimanIRControlEMPropertySendKeyCommand:
+		case HeimanIRControlEMPropertyKeySendKeyCommand:
 			heimanIRControlEMSendKeyCommand(mapParams["terminalId"].(string), value.(cluster.HEIMANInfraredRemoteSendKeyCommand), mqttMsg.ID)
-		case HeimanIRControlEMPropertyStudyKey:
+		case HeimanIRControlEMPropertyKeyStudyKey:
 			heimanIRControlEMStudyKey(mapParams["terminalId"].(string), value.(cluster.HEIMANInfraredRemoteStudyKey), mqttMsg.ID)
-		case HeimanIRControlEMPropertyDeleteKey:
+		case HeimanIRControlEMPropertyKeyDeleteKey:
 			heimanIRControlEMDeleteKey(mapParams["terminalId"].(string), value.(cluster.HEIMANInfraredRemoteDeleteKey), mqttMsg.ID)
-		case HeimanIRControlEMPropertyCreateID:
+		case HeimanIRControlEMPropertyKeyCreateID:
 			heimanIRControlEMCreateID(mapParams["terminalId"].(string), value.(cluster.HEIMANInfraredRemoteCreateID), mqttMsg.ID)
-		case HeimanIRControlEMPropertyGetIDAndKeyCodeList:
+		case HeimanIRControlEMPropertyKeyGetIDAndKeyCodeList:
 			heimanIRControlEMGetIDAndKeyCodeList(mapParams["terminalId"].(string), value.(cluster.HEIMANInfraredRemoteGetIDAndKeyCodeList), mqttMsg.ID)
-		case HonyarSocket000a0c3cPropertyChildLock, HonyarSocketHY0105PropertyChildLock, HonyarSocketHY0106PropertyChildLock:
+		case HonyarSocket000a0c3cPropertyKeyChildLock, HonyarSocketHY0105PropertyKeyChildLock, HonyarSocketHY0106PropertyKeyChildLock:
 			if value.(string) == "00" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID, common.ChildLock)
 			} else if value.(string) == "01" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID, common.ChildLock)
 			}
-		case HonyarSocket000a0c3cPropertyUSB, HonyarSocketHY0105PropertyUSB:
+		case HonyarSocket000a0c3cPropertyKeyUSB, HonyarSocketHY0105PropertyKeyUSB:
 			if value.(string) == "00" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID, common.OnOffUSB)
 			} else if value.(string) == "01" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID, common.OnOffUSB)
 			}
-		case HonyarSocketHY0105PropertyBackGroundLight, HonyarSocketHY0106PropertyBackGroundLight:
+		case HonyarSocketHY0105PropertyKeyBackGroundLight, HonyarSocketHY0106PropertyKeyBackGroundLight:
 			if value.(string) == "00" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID, common.BackGroundLight)
 			} else if value.(string) == "01" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID, common.BackGroundLight)
 			}
-		case HonyarSocketHY0105PropertyPowerOffMemory, HonyarSocketHY0106PropertyPowerOffMemory:
+		case HonyarSocketHY0105PropertyKeyPowerOffMemory, HonyarSocketHY0106PropertyKeyPowerOffMemory:
 			if value.(string) == "00" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID, common.PowerOffMemory)
 			} else if value.(string) == "01" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID, common.PowerOffMemory)
 			}
-		case HonyarSocketHY0105PropertyHistoryElectricClear, HonyarSocketHY0106PropertyHistoryElectricClear:
+		case HonyarSocketHY0105PropertyKeyHistoryElectricClear, HonyarSocketHY0106PropertyKeyHistoryElectricClear:
 			if value.(string) == "0" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "10", mqttMsg.ID, common.HistoryElectricClear)
 			} else if value.(string) == "1" {
 				honyarSocketCommandDown(mapParams["terminalId"].(string), "11", mqttMsg.ID, common.HistoryElectricClear)
 			}
-		case Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene,
-			Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene,
-			Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene,
-			Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene,
-			Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene,
-			Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene:
+		case Honyar6SceneSwitch005f0c3bPropertyKeyLeftUpAddScene,
+			Honyar6SceneSwitch005f0c3bPropertyKeyLeftMiddleAddScene,
+			Honyar6SceneSwitch005f0c3bPropertyKeyLeftDownAddScene,
+			Honyar6SceneSwitch005f0c3bPropertyKeyRightUpAddScene,
+			Honyar6SceneSwitch005f0c3bPropertyKeyRightMiddleAddScene,
+			Honyar6SceneSwitch005f0c3bPropertyKeyRightDownAddScene:
 			honyarAddSceneCommandDown(mapParams["terminalId"].(string), value.(string), mqttMsg.ID, key, common.AddScene)
 		default:
 			globallogger.Log.Warnf("[procProperty]: invalid key: %s", key)
@@ -920,17 +803,17 @@ func honyarAddSceneCommandDown(devEUI string, value string, msgID interface{}, k
 	command.SceneName = "0" + strconv.FormatInt(int64(len(value)/2), 16) + value
 	command.KeyID = 1
 	switch key {
-	case IotwarePropertySwitchLeftUpLogo, Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene:
+	case IotwarePropertyMethodSwitchLeftUpLogo, Honyar6SceneSwitch005f0c3bPropertyKeyLeftUpAddScene:
 		command.SceneID = 1
-	case IotwarePropertySwitchLeftMidLogo, Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene:
+	case IotwarePropertyMethodSwitchLeftMidLogo, Honyar6SceneSwitch005f0c3bPropertyKeyLeftMiddleAddScene:
 		command.SceneID = 2
-	case IotwarePropertySwitchLeftDownLogo, Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene:
+	case IotwarePropertyMethodSwitchLeftDownLogo, Honyar6SceneSwitch005f0c3bPropertyKeyLeftDownAddScene:
 		command.SceneID = 3
-	case IotwarePropertySwitchRightUpLogo, Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene:
+	case IotwarePropertyMethodSwitchRightUpLogo, Honyar6SceneSwitch005f0c3bPropertyKeyRightUpAddScene:
 		command.SceneID = 4
-	case IotwarePropertySwitchRightMidLogo, Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene:
+	case IotwarePropertyMethodSwitchRightMidLogo, Honyar6SceneSwitch005f0c3bPropertyKeyRightMiddleAddScene:
 		command.SceneID = 5
-	case IotwarePropertySwitchRightDownLogo, Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene:
+	case IotwarePropertyMethodSwitchRightDownLogo, Honyar6SceneSwitch005f0c3bPropertyKeyRightDownAddScene:
 		command.SceneID = 6
 	}
 	procScenesCommand(devEUI, commandType, command, msgID)

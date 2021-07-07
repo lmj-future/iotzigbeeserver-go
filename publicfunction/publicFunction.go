@@ -494,7 +494,11 @@ func CheckTerminalIsSensor(devEUI string, tmnType string) bool {
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30,
-		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM:
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
 		// case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalHumitureDetector:
 		isSensor = true
 		// globallogger.Log.Infoln("devEUI :", devEUI ,"", "CheckTerminalIsSensor is sensor:", tmnType)
@@ -575,6 +579,8 @@ func GetTerminalInterval(tmnType string) int {
 	switch tmnType {
 	case constant.Constant.TMNTYPE.MAILEKE.ZigbeeTerminalPMT1004Detector:
 		interval = constant.Constant.TIMER.MailekeKeepAliveTimer.ZigbeeTerminalPMT1004Detector
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+		interval = constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPMTSensor0001112b
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalCOSensorEM
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
@@ -583,14 +589,20 @@ func GetTerminalInterval(tmnType string) int {
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalHTEM
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalPIRSensorEM
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
+		interval = constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPIRSensorHY0027
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalPIRILLSensorEF30
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSceneSwitchEM30:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalSceneSwitchEM30
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalSmokeSensorEM
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024:
+		interval = constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalSmokeSensorHY0024
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalWarningDevice
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
+		interval = constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalWarningDevice005b0e12
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalWaterSensorEM
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30:
@@ -599,6 +611,8 @@ func GetTerminalInterval(tmnType string) int {
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalIRControlEM
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalGASSensorEM
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022:
+		interval = constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalGASSensorHY0022
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
 		interval = constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalESocket
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
@@ -662,14 +676,18 @@ func GetTmnType(tmnType string) string {
 		tmnType = "温湿度传感器"
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM:
 		tmnType = "一氧化碳探测器"
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM:
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022:
 		tmnType = "可燃气体探测器"
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM:
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
 		tmnType = "人体红外传感器"
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30:
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM:
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024:
 		tmnType = "烟火灾探测器"
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
 		tmnType = "声光报警器"
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM:
 		tmnType = "水浸探测器"
@@ -697,6 +715,8 @@ func GetTmnType(tmnType string) string {
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal3SceneSwitch005f0cf2:
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal6SceneSwitch005f0c3b:
 		tmnType = "六键情景开关"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+		tmnType = "PM温湿度传感器"
 	default:
 		tmnType = "PMT1004_温湿度_PM"
 	}
@@ -780,6 +800,7 @@ func GetTmnTypeAndAttribute(tmnType string) publicstruct.TmnTypeAttr {
 		var data = ""
 		attribute.Data = data
 	case "PMT1004_温湿度_PM":
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
@@ -792,10 +813,14 @@ func GetTmnTypeAndAttribute(tmnType string) publicstruct.TmnTypeAttr {
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM:

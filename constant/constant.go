@@ -1,6 +1,8 @@
 package constant
 
-import "github.com/h3c/iotzigbeeserver-go/config"
+import (
+	"github.com/h3c/iotzigbeeserver-go/config"
+)
 
 // Constant Constant
 var Constant Constants
@@ -20,9 +22,11 @@ type Constants struct {
 	UsePostgres       bool
 	UseRabbitMQ       bool
 	Iotware           bool
+	Wcg               bool
 	Iotprivate        bool
 	Iotedge           bool
 	HTTPPort          string
+	LocalHost         string
 }
 
 // Kafka Kafka
@@ -98,20 +102,25 @@ type HeimanKeepAliveTimer struct {
 
 // HonyarKeepAliveTimer HonyarKeepAliveTimer
 type HonyarKeepAliveTimer struct {
-	ZigbeeTerminalSingleSwitch00500c32 uint16
-	ZigbeeTerminalDoubleSwitch00500c33 uint16
-	ZigbeeTerminalTripleSwitch00500c35 uint16
-	ZigbeeTerminalSingleSwitchHY0141   uint16
-	ZigbeeTerminalDoubleSwitchHY0142   uint16
-	ZigbeeTerminalTripleSwitchHY0143   uint16
-	ZigbeeTerminalSocket000a0c3c       uint16
-	ZigbeeTerminalSocket000a0c55       uint16
-	ZigbeeTerminalSocketHY0105         uint16
-	ZigbeeTerminalSocketHY0106         uint16
-	ZigbeeTerminal1SceneSwitch005f0cf1 uint16
-	ZigbeeTerminal2SceneSwitch005f0cf3 uint16
-	ZigbeeTerminal3SceneSwitch005f0cf2 uint16
-	ZigbeeTerminal6SceneSwitch005f0c3b uint16
+	ZigbeeTerminalSingleSwitch00500c32  uint16
+	ZigbeeTerminalDoubleSwitch00500c33  uint16
+	ZigbeeTerminalTripleSwitch00500c35  uint16
+	ZigbeeTerminalSingleSwitchHY0141    uint16
+	ZigbeeTerminalDoubleSwitchHY0142    uint16
+	ZigbeeTerminalTripleSwitchHY0143    uint16
+	ZigbeeTerminalSocket000a0c3c        uint16
+	ZigbeeTerminalSocket000a0c55        uint16
+	ZigbeeTerminalSocketHY0105          uint16
+	ZigbeeTerminalSocketHY0106          uint16
+	ZigbeeTerminal1SceneSwitch005f0cf1  uint16
+	ZigbeeTerminal2SceneSwitch005f0cf3  uint16
+	ZigbeeTerminal3SceneSwitch005f0cf2  uint16
+	ZigbeeTerminal6SceneSwitch005f0c3b  uint16
+	ZigbeeTerminalPMTSensor0001112b     uint16
+	ZigbeeTerminalWarningDevice005b0e12 uint16
+	ZigbeeTerminalGASSensorHY0022       uint16
+	ZigbeeTerminalSmokeSensorHY0024     uint16
+	ZigbeeTerminalPIRSensorHY0027       uint16
 }
 
 // MailekeKeepAliveTimer MailekeKeepAliveTimer
@@ -217,20 +226,25 @@ type Heiman struct {
 
 // Honyar Honyar
 type Honyar struct {
-	ZigbeeTerminalSingleSwitch00500c32 string //零火
-	ZigbeeTerminalDoubleSwitch00500c33 string
-	ZigbeeTerminalTripleSwitch00500c35 string
-	ZigbeeTerminalSingleSwitchHY0141   string //单火
-	ZigbeeTerminalDoubleSwitchHY0142   string
-	ZigbeeTerminalTripleSwitchHY0143   string
-	ZigbeeTerminalSocket000a0c3c       string //10A U1 双USB
-	ZigbeeTerminalSocket000a0c55       string //16A U1
-	ZigbeeTerminalSocketHY0105         string //10A U2 单USB
-	ZigbeeTerminalSocketHY0106         string //16A U2
-	ZigbeeTerminal1SceneSwitch005f0cf1 string
-	ZigbeeTerminal2SceneSwitch005f0cf3 string
-	ZigbeeTerminal3SceneSwitch005f0cf2 string
-	ZigbeeTerminal6SceneSwitch005f0c3b string
+	ZigbeeTerminalSingleSwitch00500c32  string //零火
+	ZigbeeTerminalDoubleSwitch00500c33  string
+	ZigbeeTerminalTripleSwitch00500c35  string
+	ZigbeeTerminalSingleSwitchHY0141    string //单火
+	ZigbeeTerminalDoubleSwitchHY0142    string
+	ZigbeeTerminalTripleSwitchHY0143    string
+	ZigbeeTerminalSocket000a0c3c        string //10A U1 双USB
+	ZigbeeTerminalSocket000a0c55        string //16A U1
+	ZigbeeTerminalSocketHY0105          string //10A U2 单USB
+	ZigbeeTerminalSocketHY0106          string //16A U2
+	ZigbeeTerminal1SceneSwitch005f0cf1  string
+	ZigbeeTerminal2SceneSwitch005f0cf3  string
+	ZigbeeTerminal3SceneSwitch005f0cf2  string
+	ZigbeeTerminal6SceneSwitch005f0c3b  string
+	ZigbeeTerminalPMTSensor0001112b     string
+	ZigbeeTerminalWarningDevice005b0e12 string
+	ZigbeeTerminalGASSensorHY0022       string
+	ZigbeeTerminalSmokeSensorHY0024     string
+	ZigbeeTerminalPIRSensorHY0027       string
 }
 
 // ManufacturerName ManufacturerName
@@ -255,6 +269,7 @@ func init() {
 	Constant.UsePostgres = defaultConfigs["usePostgres"].(bool)
 	Constant.UseRabbitMQ = defaultConfigs["useRabbitMQ"].(bool)
 	Constant.Iotware = defaultConfigs["iotware"].(bool)
+	Constant.Wcg = defaultConfigs["wcg"].(bool)
 	Constant.Iotprivate = defaultConfigs["iotprivate"].(bool)
 	Constant.Iotedge = defaultConfigs["iotedge"].(bool)
 	Constant.HTTPPort = defaultConfigs["httpPort"].(string)
@@ -326,6 +341,11 @@ func init() {
 	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminal2SceneSwitch005f0cf3 = (10 * 60)
 	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminal3SceneSwitch005f0cf2 = (10 * 60)
 	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminal6SceneSwitch005f0c3b = (10 * 60)
+	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPMTSensor0001112b = (60 * 60)
+	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalWarningDevice005b0e12 = (60 * 60)
+	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalGASSensorHY0022 = (10 * 60)
+	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalSmokeSensorHY0024 = (60 * 60)
+	Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPIRSensorHY0027 = (60 * 60)
 
 	Constant.TIMER.MailekeKeepAliveTimer.ZigbeeTerminalPMT1004Detector = (5 * 60)
 
@@ -392,6 +412,11 @@ func init() {
 	Constant.TMNTYPE.HONYAR.ZigbeeTerminal2SceneSwitch005f0cf3 = "005f0cf3"
 	Constant.TMNTYPE.HONYAR.ZigbeeTerminal3SceneSwitch005f0cf2 = "005f0cf2"
 	Constant.TMNTYPE.HONYAR.ZigbeeTerminal6SceneSwitch005f0c3b = "005f0c3b"
+	Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b = "0001112b"
+	Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12 = "005b0e12"
+	Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022 = "HY0022"
+	Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024 = "HY0024"
+	Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027 = "HY0027"
 
 	Constant.TMNTYPE.MAILEKE.ZigbeeTerminalPMT1004Detector = "PMT1004_温湿度_PM"
 

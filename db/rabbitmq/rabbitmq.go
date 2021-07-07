@@ -98,7 +98,7 @@ func (r *RabbitMQ) mqConnect() {
 	if err != nil {
 		globallogger.Log.Errorf("MQ打开管道失败:%s", err)
 	}
-	globallogger.Log.Warnf("[RabbitMQ] connect success: %+v", r)
+	globallogger.Log.Errorf("[RabbitMQ] connect success: %+v", r)
 }
 
 // 关闭RabbitMQ连接

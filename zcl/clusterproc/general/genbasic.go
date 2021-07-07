@@ -112,39 +112,39 @@ func procGenBasicProcRead(devEUI string, dstEndpointIndex int, clusterID uint16)
 	})
 }
 
-func genBasicProcKeepAlive(devEUI string, tmnType string, interval uint16) {
-	switch tmnType {
+func genBasicProcKeepAlive(terminalInfo config.TerminalInfo, interval uint16) {
+	switch terminalInfo.TmnType {
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-		keepalive.ProcKeepAlive(devEUI, interval)
-		go procGenBasicProcRead(devEUI, 0, 0x0006)
+		keepalive.ProcKeepAlive(terminalInfo, interval)
+		go procGenBasicProcRead(terminalInfo.DevEUI, 0, 0x0006)
 		go func() {
 			timer := time.NewTimer(2 * time.Second)
 			<-timer.C
 			timer.Stop()
-			procGenBasicProcRead(devEUI, 0, 0x0702)
+			procGenBasicProcRead(terminalInfo.DevEUI, 0, 0x0702)
 		}()
 		go func() {
 			timer := time.NewTimer(4 * time.Second)
 			<-timer.C
 			timer.Stop()
-			procGenBasicProcRead(devEUI, 0, 0x0b04)
+			procGenBasicProcRead(terminalInfo.DevEUI, 0, 0x0b04)
 		}()
 	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal1SceneSwitch005f0cf1,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal2SceneSwitch005f0cf3,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal3SceneSwitch005f0cf2,
 		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal6SceneSwitch005f0c3b:
-		keepalive.ProcKeepAlive(devEUI, interval)
+		keepalive.ProcKeepAlive(terminalInfo, interval)
 	default:
-		globallogger.Log.Warnf("[genBasicProcKeepAlive]: invalid tmnType: %s", tmnType)
+		globallogger.Log.Warnf("[genBasicProcKeepAlive]: invalid tmnType: %s", terminalInfo.TmnType)
 	}
 }
 
 // genBasicProcReport 处理report（0x0a）消息
 func genBasicProcReport(terminalInfo config.TerminalInfo, command interface{}) {
-	genBasicProcKeepAlive(terminalInfo.DevEUI, terminalInfo.TmnType, uint16(terminalInfo.Interval))
+	genBasicProcKeepAlive(terminalInfo, uint16(terminalInfo.Interval))
 }
 
 // genBasicProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
@@ -157,7 +157,7 @@ func genBasicProcConfigureReportingResponse(terminalInfo config.TerminalInfo, co
 		} else {
 			// proc keepalive
 			if v.AttributeID == 0 {
-				genBasicProcKeepAlive(terminalInfo.DevEUI, terminalInfo.TmnType, uint16(terminalInfo.Interval))
+				genBasicProcKeepAlive(terminalInfo, uint16(terminalInfo.Interval))
 			}
 		}
 	}

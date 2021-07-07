@@ -3,6 +3,7 @@ package heiman
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/constant"
@@ -15,38 +16,27 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func getPM25MeasurementParams(terminalID string, tmnType string, PM25 uint64) interface{} {
-	params := make(map[string]interface{}, 2)
-	params["terminalId"] = terminalID
-	var key string
-	switch tmnType {
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
-		key = iotsmartspace.HeimanHS2AQPropertyPM25
-	default:
-		globallogger.Log.Warnf("[devEUI: %v][getTemperatureMeasurementParams] invalid tmnType: %v", terminalID, tmnType)
-	}
-	params[key] = PM25
-	return params
-}
-
 func pm25MeasurementProcAttribute(terminalInfo config.TerminalInfo, attributeName string, attribute *cluster.Attribute) {
 	switch attributeName {
 	case "MeasuredValue":
 		PM25 := attribute.Value.(uint64)
-
 		// iotsmartspace publish msg to app
 		if constant.Constant.Iotware {
-			values := make(map[string]interface{}, 1)
-			values[iotsmartspace.IotwarePropertyPM25] = PM25
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPM25{PM25: PM25})
 		} else if constant.Constant.Iotedge {
-			params := getPM25MeasurementParams(terminalInfo.DevEUI, terminalInfo.TmnType, PM25)
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2AQPropertyPM25{DevEUI: terminalInfo.DevEUI, PM25: PM25}, uuid.NewV4().String())
+			default:
+				globallogger.Log.Warnf("[devEUI: %v][pm25MeasurementProcAttribute] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+			}
 		} else if constant.Constant.Iotprivate {
 			type appDataMsg struct {
 				PM25 string `json:"PM25"`
 			}
-			kafkaMsg := publicstruct.DataReportMsg{
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
 				OIDIndex:   terminalInfo.OIDIndex,
 				DevSN:      terminalInfo.DevEUI,
 				LinkType:   terminalInfo.ProfileID,
@@ -54,8 +44,7 @@ func pm25MeasurementProcAttribute(terminalInfo config.TerminalInfo, attributeNam
 				AppData: appDataMsg{
 					PM25: strconv.FormatUint(PM25, 10) + "ug/m^3",
 				},
-			}
-			kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+			})
 			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
 	case "MinMeasuredValue":
@@ -68,8 +57,7 @@ func pm25MeasurementProcAttribute(terminalInfo config.TerminalInfo, attributeNam
 
 //pm25MeasurementProcReadRsp 处理readRsp（0x01）消息
 func pm25MeasurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		globallogger.Log.Infof("[devEUI: %v][pm25MeasurementProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		if v.Status == cluster.ZclStatusSuccess {
 			pm25MeasurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
@@ -81,8 +69,7 @@ func pm25MeasurementProcReadRsp(terminalInfo config.TerminalInfo, command interf
 func pm25MeasurementProcReport(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ReportAttributesCommand)
 	globallogger.Log.Infof("[devEUI: %v][pm25MeasurementProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	attributeReports := Command.AttributeReports
-	for _, v := range attributeReports {
+	for _, v := range Command.AttributeReports {
 		pm25MeasurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
 	}
 }

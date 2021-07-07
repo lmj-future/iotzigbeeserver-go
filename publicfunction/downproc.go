@@ -17,10 +17,14 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalredisclient"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalsocket"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globaltransfersn"
-	"github.com/h3c/iotzigbeeserver-go/metrics"
+
+	// "github.com/h3c/iotzigbeeserver-go/metrics"
 	"github.com/h3c/iotzigbeeserver-go/models"
 	"github.com/h3c/iotzigbeeserver-go/publicstruct"
 	"github.com/h3c/iotzigbeeserver-go/zcl/common"
+	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go"
+	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/cluster"
+	"github.com/h3c/iotzigbeeserver-go/zcl/zcl-go/frame"
 	"github.com/lib/pq"
 )
 
@@ -55,7 +59,7 @@ func sendDownMsg(devEUI string, sendBuf []byte, APMac string) {
 			return
 		}
 		globallogger.Log.Infoln("devEUI :", devEUI, "send to", socketInfo.IPAddr, ":", socketInfo.IPPort, "send buf:", hex.EncodeToString(sendBuf))
-		metrics.CountUdpSendTotal()
+		// metrics.CountUdpSendTotal()
 	}
 }
 
@@ -261,8 +265,12 @@ func encAndSendDownMsg(terminalInfo config.TerminalInfo, ackOptionType string, m
 			dataSNstrBuilder.WriteString(strconv.FormatInt(int64(dataSN), 16))
 			dataSNstr = dataSNstrBuilder.String()[dataSNstrBuilder.Len()-4:]
 		}
-		msgInsertRedis(0, terminalInfo.DevEUI, key, msgType, optionType, returnData.SN, dataSNstr,
-			returnData.sendBuf, data, terminalInfo.APMac, msgID)
+		if msgType == globalmsgtype.MsgType.DOWNMsg.ZigbeeWholeNetworkIEEEReqEvent {
+			sendDownMsg(terminalInfo.DevEUI, returnData.sendBuf, terminalInfo.APMac)
+		} else {
+			msgInsertRedis(0, terminalInfo.DevEUI, key, msgType, optionType, returnData.SN, dataSNstr,
+				returnData.sendBuf, data, terminalInfo.APMac, msgID)
+		}
 	}
 }
 
@@ -296,6 +304,34 @@ func SendPermitJoinReq(terminalInfo config.TerminalInfo, duration string, TCSign
 		globalmsgtype.MsgType.OPTIONType.ZigbeeOptionTypeNeedRsp, 0, "", duration+TCSignificance)
 }
 
+func procHEIMANInfraredRemote(terminalInfo *config.TerminalInfo) {
+	frameHexString, transactionID := zcl.ZCLObj().EncFrameConfigurationToHexString(frame.Configuration{
+		FrameType:                        frame.FrameTypeLocal,
+		FrameTypeConfigured:              true,
+		Direction:                        frame.DirectionClientServer,
+		DirectionConfigured:              true,
+		DisableDefaultResponse:           true,
+		DisableDefaultResponseConfigured: true,
+		CommandID:                        0xf3,
+		CommandIDConfigured:              true,
+		Command: cluster.HEIMANInfraredRemoteDeleteKey{
+			ID:      0xff,
+			KeyCode: 0xff,
+		},
+		CommandConfigured: true,
+	}, 0)
+	SendZHADownMsg(common.DownMsg{
+		ProfileID:        0x0104,
+		ClusterID:        uint16(cluster.HEIMANInfraredRemote),
+		DstEndpointIndex: 0,
+		ZclData:          frameHexString,
+		SN:               transactionID,
+		DevEUI:           terminalInfo.DevEUI,
+		MsgType:          globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+	})
+	time.Sleep(time.Second)
+}
+
 // ProcTerminalDelete ProcTerminalDelete
 func ProcTerminalDelete(devEUI string) {
 	var terminalInfo *config.TerminalInfo
@@ -309,6 +345,9 @@ func ProcTerminalDelete(devEUI string) {
 		globallogger.Log.Errorln("devEUI :", devEUI, "ProcTerminalDelete GetTerminalInfoByDevEUI err:", err)
 	}
 	if terminalInfo != nil {
+		if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM {
+			procHEIMANInfraredRemote(terminalInfo)
+		}
 		var keyBuilder strings.Builder
 		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
 			keyBuilder.WriteString(terminalInfo.APMac)
@@ -365,6 +404,9 @@ func ProcTerminalDeleteByOIDIndex(OIDIndex string) {
 		globallogger.Log.Errorln("OIDIndex :", OIDIndex, "ProcTerminalDeleteByOIDIndex GetTerminalInfoByOIDIndex err:", err)
 	}
 	if terminalInfo != nil {
+		if terminalInfo.TmnType == constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM {
+			procHEIMANInfraredRemote(terminalInfo)
+		}
 		var keyBuilder strings.Builder
 		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
 			keyBuilder.WriteString(terminalInfo.APMac)
@@ -441,7 +483,12 @@ func SendBindTerminalReq(terminalInfo config.TerminalInfo) {
 				globalmsgtype.MsgType.OPTIONType.ZigbeeOptionTypeNeedRsp, 0, "", dataBuilder.String())
 		}
 	}
-	SendPermitJoinReq(terminalInfo, "00", "00")
+	go func() {
+		timer := time.NewTimer(2 * time.Second)
+		<-timer.C
+		SendPermitJoinReq(terminalInfo, "00", "00")
+		timer.Stop()
+	}()
 }
 
 // GetTerminalEndpoint GetTerminalEndpoint
@@ -450,6 +497,14 @@ func GetTerminalEndpoint(terminalInfo config.TerminalInfo) {
 	encAndSendDownMsg(terminalInfo, globalmsgtype.MsgType.ACKOPTIONType.ZigbeeAckOptionTypeNeedRsp,
 		globalmsgtype.MsgType.DOWNMsg.ZigbeeTerminalEndpointReqEvent,
 		globalmsgtype.MsgType.OPTIONType.ZigbeeOptionTypeNeedRsp, 0, "", "")
+}
+
+// SendWholeNetworkIEEE SendWholeNetworkIEEE
+func SendWholeNetworkIEEE(terminalInfo config.TerminalInfo) {
+	globallogger.Log.Infoln("devEUI :", terminalInfo.DevEUI, "SendWholeNetworkIEEE")
+	encAndSendDownMsg(terminalInfo, globalmsgtype.MsgType.ACKOPTIONType.ZigbeeAckOptionTypeNoRsp,
+		globalmsgtype.MsgType.DOWNMsg.ZigbeeWholeNetworkIEEEReqEvent,
+		globalmsgtype.MsgType.OPTIONType.ZigbeeOptionTypeNoRsp, 0, "", "0000")
 }
 
 // SendTerminalDiscovery SendTerminalDiscovery

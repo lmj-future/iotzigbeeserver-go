@@ -30,6 +30,7 @@ func LoadTerminalInfoListCache(key string) (interface{}, bool) {
 
 // StoreTerminalInfoListCache LoadTerminalInfoListCache
 func StoreTerminalInfoListCache(key string, terminalInfo *config.TerminalInfo) {
+	globallogger.Log.Errorf("StoreTerminalInfoListCache: key: %s, terminalInfo: %+v", key, terminalInfo)
 	terminalInfoListCache.Store(key, terminalInfo)
 }
 
@@ -41,6 +42,7 @@ func DeleteTerminalInfoListCache(key string) {
 			terminalInfo = nil
 		}
 	}
+	globallogger.Log.Errorf("DeleteTerminalInfoListCache: key: %s", key)
 	terminalInfoListCache.Delete(key)
 }
 

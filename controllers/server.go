@@ -10,7 +10,7 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globallogger"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalmsgtype"
 	"github.com/h3c/iotzigbeeserver-go/globalconstant/globalsocket"
-	"github.com/h3c/iotzigbeeserver-go/metrics"
+	// "github.com/h3c/iotzigbeeserver-go/metrics"
 	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 )
 
@@ -61,8 +61,8 @@ func CreateUDPServer(rcvUDPMsgport int) {
 				continue
 			}
 			go UDPMsgProc(msg, rinfo)
-			metrics.CountUdpReceiveTotal()
-			metrics.CountUdpReceiveByAddress(rinfo.Address)
+			// metrics.CountUdpReceiveTotal()
+			// metrics.CountUdpReceiveByAddress(rinfo.Address)
 		}
 	}()
 }
@@ -108,8 +108,8 @@ func procUDPMsg(udpMsg []byte, rinfo dgram.RInfo) {
 	if jsonInfo.TunnelHeader.DevTypeInfo.DevType == "T320M" {
 		jsonInfo.TunnelHeader.LinkInfo.APMac = jsonInfo.TunnelHeader.LinkInfo.ACMac
 	}
-	metrics.CountUdpReceiveByGwSN(jsonInfo.TunnelHeader.LinkInfo.APMac)
-	metrics.CountUdpReceiveByGwSNAndModuleID(jsonInfo.TunnelHeader.LinkInfo.APMac, jsonInfo.MessagePayload.ModuleID)
+	// metrics.CountUdpReceiveByGwSN(jsonInfo.TunnelHeader.LinkInfo.APMac)
+	// metrics.CountUdpReceiveByGwSNAndModuleID(jsonInfo.TunnelHeader.LinkInfo.APMac, jsonInfo.MessagePayload.ModuleID)
 	switch jsonInfo.MessageHeader.MsgType { // UDP新协议版本msgType判断，新协议版本号0101
 	case globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101,
 		globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101,
@@ -124,7 +124,7 @@ func procUDPMsg(udpMsg []byte, rinfo dgram.RInfo) {
 		if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralAck ||
 			jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralAckV0101 { //处理ack消息
 			procACKMsg(jsonInfo)
-			metrics.CountUdpReceiveByLabel("ack")
+			// metrics.CountUdpReceiveByLabel("ack")
 		} else if jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsg.ZigbeeGeneralKeepalive ||
 			jsonInfo.MessageHeader.MsgType == globalmsgtype.MsgType.GENERALMsgV0101.ZigbeeGeneralKeepaliveV0101 {
 			keepAliveInterval, _ := strconv.ParseInt(hex.EncodeToString(append(udpMsg[:0:0], udpMsg[len(udpMsg)-4:len(udpMsg)-2]...)), 16, 0)
@@ -137,7 +137,7 @@ func procUDPMsg(udpMsg []byte, rinfo dgram.RInfo) {
 				publicfunction.KeepAliveTimerFreeCacheSet(jsonInfo.TunnelHeader.LinkInfo.APMac, int(keepAliveInterval))
 				procKeepAliveMsgFreeCache(jsonInfo.TunnelHeader.LinkInfo.APMac, int(keepAliveInterval))
 			}
-			metrics.CountUdpReceiveByLabel("keepalive")
+			// metrics.CountUdpReceiveByLabel("keepalive")
 		} else {
 			procAnyMsg(jsonInfo)
 		}

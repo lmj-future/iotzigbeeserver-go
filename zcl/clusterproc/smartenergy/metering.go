@@ -3,6 +3,7 @@ package smartenergy
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/constant"
@@ -15,100 +16,145 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func meteringProcAttribute(terminalInfo config.TerminalInfo, attributeName string, attribute *cluster.Attribute, bPublish bool,
-	params map[string]interface{}, values map[string]interface{}) (bool, map[string]interface{}, map[string]interface{}) {
-	var key string
-	switch attributeName {
-	case "CurrentSummationDelivered":
-		currentSummationDelivered := attribute.Value.(uint64)
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
-			key = iotsmartspace.HeimanESocketPropertyElectric
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-			key = iotsmartspace.HeimanSmartPlugPropertyElectric
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
-			key = iotsmartspace.HonyarSocket000a0c3cPropertyCurretSummationDelivered
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
-			key = iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			key = iotsmartspace.HonyarSocketHY0105PropertyCurretSummationDelivered
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			key = iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered
-		default:
-			globallogger.Log.Warnf("[devEUI: %v][meteringProcAttribute] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+func meteringProcReadRspIotware(terminalInfo config.TerminalInfo, command interface{}) {
+	var value iotsmartspace.IotwarePropertyTotalConsumptionRealTimePower = iotsmartspace.IotwarePropertyTotalConsumptionRealTimePower{}
+	var bPublish = false
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		if v.Status == cluster.ZclStatusSuccess {
+			switch v.AttributeName {
+			case "CurrentSummationDelivered":
+				value.TotalConsumption = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64)
+				if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+					value.TotalConsumption = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64)
+				}
+				bPublish = true
+			case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+			case "InstantaneousDemand":
+				value.RealTimePower = strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64)
+				bPublish = true
+			default:
+				globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReadRspIotware unknow attributeName", v.AttributeName)
+			}
 		}
-		// HEIMAN
-		// params[key] = strconv.FormatFloat(float64(currentSummationDelivered)*0.1*0.001, 'f', 2, 64)
-		params[key] = strconv.FormatFloat(float64(currentSummationDelivered)*0.001, 'f', 2, 64)
-		values[iotsmartspace.IotwarePropertyElectric] = params[key]
-		bPublish = true
-	case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
-	case "InstantaneousDemand":
-		instantaneousDemand := attribute.Value.(int64)
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
-			key = iotsmartspace.HeimanESocketPropertyPower
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
-			key = iotsmartspace.HeimanSmartPlugPropertyPower
-		default:
-			globallogger.Log.Warnf("[devEUI: %v][meteringProcAttribute] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
-		}
-		params[key] = strconv.FormatFloat(float64(instantaneousDemand)*0.1, 'f', 2, 64)
-		values[iotsmartspace.IotwarePropertyPower] = params[key]
-		bPublish = true
-	default:
-		globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcAttribute unknow attributeName", attributeName)
 	}
-	return bPublish, params, values
+	if bPublish {
+		iotsmartspace.PublishTelemetryUpIotware(terminalInfo, value)
+	}
 }
-
-func meteringProcMsg2Kafka(terminalInfo config.TerminalInfo, values map[string]interface{}) {
-	kafkaMsg := publicstruct.DataReportMsg{
-		OIDIndex:   terminalInfo.OIDIndex,
-		DevSN:      terminalInfo.DevEUI,
-		LinkType:   terminalInfo.ProfileID,
-		DeviceType: terminalInfo.TmnType2,
-	}
-	if electric, ok := values[iotsmartspace.IotwarePropertyElectric]; ok {
-		type appDataMsg struct {
-			Electric string `json:"electric"`
+func meteringProcReadRspIotedge(terminalInfo config.TerminalInfo, command interface{}) {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		if v.Status == cluster.ZclStatusSuccess {
+			switch v.AttributeName {
+			case "CurrentSummationDelivered":
+				currentSummationDelivered := strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64)
+				// HEIMAN
+				if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+					currentSummationDelivered = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64)
+				}
+				switch terminalInfo.TmnType {
+				case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HeimanESocketPropertyElectric{DevEUI: terminalInfo.DevEUI, Electric: currentSummationDelivered}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HeimanSmartPlugPropertyElectric{DevEUI: terminalInfo.DevEUI, Electric: currentSummationDelivered}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HonyarSocket000a0c3cPropertyCurretSummationDelivered{
+							DevEUI:                   terminalInfo.DevEUI,
+							CurretSummationDelivered: currentSummationDelivered,
+						}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered{
+							DevEUI:                   terminalInfo.DevEUI,
+							CurretSummationDelivered: currentSummationDelivered,
+						}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HonyarSocketHY0105PropertyCurretSummationDelivered{
+							DevEUI:                   terminalInfo.DevEUI,
+							CurretSummationDelivered: currentSummationDelivered,
+						}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered{
+							DevEUI:                   terminalInfo.DevEUI,
+							CurretSummationDelivered: currentSummationDelivered,
+						}, uuid.NewV4().String())
+				default:
+					globallogger.Log.Warnf("[devEUI: %v][meteringProcReadRspIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+				}
+			case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+			case "InstantaneousDemand":
+				instantaneousDemand := strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64)
+				switch terminalInfo.TmnType {
+				case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HeimanESocketPropertyPower{DevEUI: terminalInfo.DevEUI, Power: instantaneousDemand}, uuid.NewV4().String())
+				case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+						iotsmartspace.HeimanSmartPlugPropertyPower{DevEUI: terminalInfo.DevEUI, Power: instantaneousDemand}, uuid.NewV4().String())
+				default:
+					globallogger.Log.Warnf("[devEUI: %v][meteringProcReadRspIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+				}
+			default:
+				globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReadRspIotedge unknow attributeName", v.AttributeName)
+			}
 		}
-		kafkaMsg.AppData = appDataMsg{Electric: electric.(string) + "kW/h"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	}
-	if power, ok := values[iotsmartspace.IotwarePropertyPower]; ok {
-		type appDataMsg struct {
-			Power string `json:"power"`
+}
+func meteringProcReadRspIotprivate(terminalInfo config.TerminalInfo, command interface{}) {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		if v.Status == cluster.ZclStatusSuccess {
+			switch v.AttributeName {
+			case "CurrentSummationDelivered":
+				type appDataMsg struct {
+					Electric string `json:"electric"`
+				}
+				var electric = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64) + "kW/h"
+				// HEIMAN
+				if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+					electric = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64) + "kW/h"
+				}
+				kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+					Time:       time.Now(),
+					OIDIndex:   terminalInfo.OIDIndex,
+					DevSN:      terminalInfo.DevEUI,
+					LinkType:   terminalInfo.ProfileID,
+					DeviceType: terminalInfo.TmnType2,
+					AppData:    appDataMsg{Electric: electric},
+				})
+				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+			case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+			case "InstantaneousDemand":
+				type appDataMsg struct {
+					Power string `json:"power"`
+				}
+				kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+					Time:       time.Now(),
+					OIDIndex:   terminalInfo.OIDIndex,
+					DevSN:      terminalInfo.DevEUI,
+					LinkType:   terminalInfo.ProfileID,
+					DeviceType: terminalInfo.TmnType2,
+					AppData:    appDataMsg{Power: strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64) + "W"},
+				})
+				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+			default:
+				globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReadRspIotprivate unknow attributeName", v.AttributeName)
+			}
 		}
-		kafkaMsg.AppData = appDataMsg{Power: power.(string) + "W"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 	}
 }
 
 //meteringProcReadRsp 处理readRsp（0x01）消息
 func meteringProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	params := make(map[string]interface{}, 2)
-	values := make(map[string]interface{}, 2)
-	params["terminalId"] = terminalInfo.DevEUI
-	var bPublish = false
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
-		if v.Status == cluster.ZclStatusSuccess {
-			bPublish, params, values = meteringProcAttribute(terminalInfo, v.AttributeName, v.Attribute, bPublish, params, values)
-		}
-	}
-
-	if bPublish {
-		// iotsmartspace publish msg to app
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			meteringProcMsg2Kafka(terminalInfo, values)
-		}
+	if constant.Constant.Iotware {
+		meteringProcReadRspIotware(terminalInfo, command)
+	} else if constant.Constant.Iotedge {
+		meteringProcReadRspIotedge(terminalInfo, command)
+	} else if constant.Constant.Iotprivate {
+		meteringProcReadRspIotprivate(terminalInfo, command)
 	}
 }
 
@@ -122,72 +168,180 @@ func meteringProcWriteRsp(terminalInfo config.TerminalInfo, command interface{},
 		code = -1
 		message = "failed"
 	}
-	params := make(map[string]interface{}, 4)
-	params["code"] = code
-	params["message"] = message
-	params["terminalId"] = terminalInfo.DevEUI
-	var key string
-	var value string
-	var attributeName string
+	if constant.Constant.Iotware {
+		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+	} else if constant.Constant.Iotedge {
+		var value string
+		value = "0"
+		if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
+			contentCommand := contentFrame.Command.(*cluster.WriteAttributesCommand)
+			if contentCommand.WriteAttributeRecords[0].Attribute.Value.(bool) {
+				value = "1"
+			}
+			switch contentCommand.WriteAttributeRecords[0].AttributeName {
+			case "HistoryElectricClear":
+				switch terminalInfo.TmnType {
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+						iotsmartspace.HonyarSocketHY0105PropertyHistoryElectricClearWriteRsp{
+							DevEUI:               terminalInfo.DevEUI,
+							Code:                 code,
+							Message:              message,
+							HistoryElectricClear: value,
+						}, msgID)
+				case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+					iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+						iotsmartspace.HonyarSocketHY0106PropertyHistoryElectricClearWriteRsp{
+							DevEUI:               terminalInfo.DevEUI,
+							Code:                 code,
+							Message:              message,
+							HistoryElectricClear: value,
+						}, msgID)
+				}
+			}
+		}
+	}
+}
+
+func meteringProcReportIotware(terminalInfo config.TerminalInfo, command interface{}) {
+	var value iotsmartspace.IotwarePropertyTotalConsumptionRealTimePower = iotsmartspace.IotwarePropertyTotalConsumptionRealTimePower{}
 	var bPublish = false
-	value = "0"
-	if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
-		contentCommand := contentFrame.Command.(*cluster.WriteAttributesCommand)
-		if contentCommand.WriteAttributeRecords[0].Attribute.Value.(bool) {
-			value = "1"
-		}
-		attributeName = contentCommand.WriteAttributeRecords[0].AttributeName
-	}
-	switch attributeName {
-	case "HistoryElectricClear":
-		switch terminalInfo.TmnType {
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
-			key = iotsmartspace.HonyarSocketHY0105PropertyHistoryElectricClear
+	for _, v := range command.(*cluster.ReportAttributesCommand).AttributeReports {
+		switch v.AttributeName {
+		case "CurrentSummationDelivered":
+			value.TotalConsumption = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64)
+			if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+				value.TotalConsumption = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64)
+			}
 			bPublish = true
-		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
-			key = iotsmartspace.HonyarSocketHY0106PropertyHistoryElectricClear
+		case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+		case "InstantaneousDemand":
+			value.RealTimePower = strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64)
 			bPublish = true
+		default:
+			globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReportIotware unknow attributeName", v.AttributeName)
 		}
 	}
-	params[key] = value
 	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+		iotsmartspace.PublishTelemetryUpIotware(terminalInfo, value)
+	}
+}
+func meteringProcReportIotedge(terminalInfo config.TerminalInfo, command interface{}) {
+	for _, v := range command.(*cluster.ReportAttributesCommand).AttributeReports {
+		switch v.AttributeName {
+		case "CurrentSummationDelivered":
+			currentSummationDelivered := strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64)
+			// HEIMAN
+			if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+				currentSummationDelivered = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64)
+			}
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanESocketPropertyElectric{DevEUI: terminalInfo.DevEUI, Electric: currentSummationDelivered}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanSmartPlugPropertyElectric{DevEUI: terminalInfo.DevEUI, Electric: currentSummationDelivered}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocket000a0c3cPropertyCurretSummationDelivered{
+						DevEUI:                   terminalInfo.DevEUI,
+						CurretSummationDelivered: currentSummationDelivered,
+					}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered{
+						DevEUI:                   terminalInfo.DevEUI,
+						CurretSummationDelivered: currentSummationDelivered,
+					}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0105PropertyCurretSummationDelivered{
+						DevEUI:                   terminalInfo.DevEUI,
+						CurretSummationDelivered: currentSummationDelivered,
+					}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HonyarSocketHY0106PropertyCurretSummationDelivered{
+						DevEUI:                   terminalInfo.DevEUI,
+						CurretSummationDelivered: currentSummationDelivered,
+					}, uuid.NewV4().String())
+			default:
+				globallogger.Log.Warnf("[devEUI: %v][meteringProcReportIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+			}
+		case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+		case "InstantaneousDemand":
+			instantaneousDemand := strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64)
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanESocketPropertyPower{DevEUI: terminalInfo.DevEUI, Power: instantaneousDemand}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanSmartPlugPropertyPower{DevEUI: terminalInfo.DevEUI, Power: instantaneousDemand}, uuid.NewV4().String())
+			default:
+				globallogger.Log.Warnf("[devEUI: %v][meteringProcReportIotedge] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
+			}
+		default:
+			globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReportIotedge unknow attributeName", v.AttributeName)
+		}
+	}
+}
+func meteringProcReportIotprivate(terminalInfo config.TerminalInfo, command interface{}) {
+	for _, v := range command.(*cluster.ReportAttributesCommand).AttributeReports {
+		switch v.AttributeName {
+		case "CurrentSummationDelivered":
+			type appDataMsg struct {
+				Electric string `json:"electric"`
+			}
+			var electric = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.001, 'f', 2, 64) + "kW/h"
+			// HEIMAN
+			if terminalInfo.ManufacturerName == constant.Constant.MANUFACTURERNAME.HeiMan {
+				electric = strconv.FormatFloat(float64(v.Attribute.Value.(uint64))*0.1*0.001, 'f', 2, 64) + "kW/h"
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Electric: electric},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		case "Status", "UnitofMeasure", "Multiplier", "Divisor", "SummationFormatting", "MeteringDeviceType":
+		case "InstantaneousDemand":
+			type appDataMsg struct {
+				Power string `json:"power"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{Power: strconv.FormatFloat(float64(v.Attribute.Value.(int64))*0.1, 'f', 2, 64) + "W"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		default:
+			globallogger.Log.Warnln("devEUI :", terminalInfo.DevEUI, "meteringProcReportIotprivate unknow attributeName", v.AttributeName)
 		}
 	}
 }
 
 // meteringProcReport 处理report（0x0a）消息
 func meteringProcReport(terminalInfo config.TerminalInfo, command interface{}) {
-	Command := command.(*cluster.ReportAttributesCommand)
-	globallogger.Log.Infof("[devEUI: %v][meteringProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	params := make(map[string]interface{}, 2)
-	values := make(map[string]interface{}, 2)
-	params["terminalId"] = terminalInfo.DevEUI
-	var bPublish = false
-	attributeReports := Command.AttributeReports
-	for _, v := range attributeReports {
-		bPublish, params, values = meteringProcAttribute(terminalInfo, v.AttributeName, v.Attribute, bPublish, params, values)
-	}
-
-	if bPublish {
-		// iotsmartspace publish msg to app
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			meteringProcMsg2Kafka(terminalInfo, values)
-		}
+	if constant.Constant.Iotware {
+		meteringProcReportIotware(terminalInfo, command)
+	} else if constant.Constant.Iotedge {
+		meteringProcReportIotedge(terminalInfo, command)
+	} else if constant.Constant.Iotprivate {
+		meteringProcReportIotprivate(terminalInfo, command)
 	}
 }
 
 // meteringProcConfigureReportingResponse 处理configureReportingResponse（0x07）消息
 func meteringProcConfigureReportingResponse(terminalInfo config.TerminalInfo, command interface{}) {
-	Command := command.(*cluster.ConfigureReportingResponse)
-	for _, v := range Command.AttributeStatusRecords {
+	for _, v := range command.(*cluster.ConfigureReportingResponse).AttributeStatusRecords {
 		if v.Status != cluster.ZclStatusSuccess {
 			globallogger.Log.Infof("[devEUI: %v][meteringProcConfigureReportingResponse]: configReport failed: %x", terminalInfo.DevEUI, v.Status)
 		}

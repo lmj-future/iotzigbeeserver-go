@@ -238,16 +238,31 @@ func procActionInsertSuccess(mapParams map[string]interface{}) {
 				procActionInsertSuccessRead(devEUI, 1, 0x0402)
 				procActionInsertSuccessRead(devEUI, 0, 0x0405)
 			}
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM:
+		case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+			if len(endpointTemp) > 0 && endpointTemp[0] == "01" {
+				procActionInsertSuccessRead(devEUI, 0, 0x0001)
+				procActionInsertSuccessRead(devEUI, 0, 0x0402)
+				procActionInsertSuccessRead(devEUI, 0, 0x0405)
+				procActionInsertSuccessRead(devEUI, 1, 0xfe02)
+			} else {
+				procActionInsertSuccessRead(devEUI, 1, 0x0001)
+				procActionInsertSuccessRead(devEUI, 1, 0x0402)
+				procActionInsertSuccessRead(devEUI, 1, 0x0405)
+				procActionInsertSuccessRead(devEUI, 0, 0xfe02)
+			}
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
 			procActionInsertSuccessRead(devEUI, 0, 0x0001)
 		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30:
 			procActionInsertSuccessRead(devEUI, 0, 0x0001)
 		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
 			procActionInsertSuccessRead(devEUI, 0, 0x0006)
 			procActionInsertSuccessRead(devEUI, 0, 0x0702)
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM:
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024:
 			procActionInsertSuccessRead(devEUI, 0, 0x0001)
-		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
+		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
 			procActionInsertSuccessRead(devEUI, 0, 0x0001)
 		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM:
 			procActionInsertSuccessRead(devEUI, 0, 0x0001)
@@ -411,6 +426,8 @@ func ActionInsertSuccess(terminalInfo config.TerminalInfo) {
 		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0702)
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0500, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalGASSensorEM)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022:
+		terminalIntervalReq(terminalInfo.DevEUI, 0x0500, endpointIndex, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalGASSensorHY0022)
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
 		if len(endpointTemp) > 1 && endpointTemp[1] == "01" {
 			endpointIndex = 1
@@ -440,8 +457,36 @@ func ActionInsertSuccess(terminalInfo config.TerminalInfo) {
 			timer.Stop()
 			syncTime(terminalInfo.DevEUI, 0x000a, endpointIndex)
 		}()
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+		if len(endpointTemp) > 1 && endpointTemp[0] == "01" {
+			terminalIntervalReq(terminalInfo.DevEUI, 0x0001, 0, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPMTSensor0001112b)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0402)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0405)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 1, 0xfe02)
+		} else {
+			terminalIntervalReq(terminalInfo.DevEUI, 0x0001, 1, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPMTSensor0001112b)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 1, 0x0001)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 1, 0x0402)
+			procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0xfe02)
+		}
+		// go func() {
+		// 	timer := time.NewTimer(5 * time.Second)
+		// 	<-timer.C
+		// 	timer.Stop()
+		// 	terminalIntervalReq(terminalInfo.DevEUI, 0x0402, endpointIndex, 3*60)
+		// }()
+		// go func() {
+		// 	timer := time.NewTimer(10 * time.Second)
+		// 	<-timer.C
+		// 	timer.Stop()
+		// 	terminalIntervalReq(terminalInfo.DevEUI, 0x0405, endpointIndex, 3*60)
+		// }()
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalPIRSensorEM)
+		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
+		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalPIRSensorHY0027)
 		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalPIRILLSensorEF30)
@@ -453,8 +498,14 @@ func ActionInsertSuccess(terminalInfo config.TerminalInfo) {
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalSmokeSensorEM)
 		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024:
+		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalSmokeSensorHY0024)
+		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalWarningDevice)
+		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
+		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HonyarKeepAliveTimer.ZigbeeTerminalWarningDevice005b0e12)
 		procActionInsertSuccessRead(terminalInfo.DevEUI, 0, 0x0001)
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM:
 		terminalIntervalReq(terminalInfo.DevEUI, 0x0001, endpointIndex, constant.Constant.TIMER.HeimanKeepAliveTimer.ZigbeeTerminalWaterSensorEM)

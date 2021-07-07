@@ -23,61 +23,73 @@ import (
 
 // Client 全局kafka客户端变量
 var Client sarama.Client
+var Produce sarama.AsyncProducer
+var Group sarama.ConsumerGroup
+var connectting = false
+var connectFlag = false
 
-func reConnect(addrs []string, config *sarama.Config) {
+func GetConnectFlag() bool {
+	return connectFlag
+}
+
+func SetConnectFlag(flag bool) {
+	connectFlag = flag
+}
+
+func connectLoop(addrs []string, config *sarama.Config) {
 	var err error
-	timer := time.NewTimer(30 * time.Second)
-	<-timer.C
-	timer.Stop()
-	Client, err = sarama.NewClient(addrs, config)
-	if err != nil {
-		globallogger.Log.Errorln("[Kafka][Reconnect] NewClient, err:", err.Error())
-		reConnect(addrs, config)
-	} else {
-		globallogger.Log.Warnf("[Kafka][Reconnect] new client success: %+v", Client)
+	for {
+		if Client, err = sarama.NewClient(addrs, config); err != nil {
+			globallogger.Log.Errorf("[Kafka] [connectLoop] failed err:%s", err.Error())
+			time.Sleep(time.Second * 2)
+		} else {
+			globallogger.Log.Errorf("[Kafka] new client success :%+v", addrs)
+			connectFlag = true
+			connectting = false
+			Produce, err = sarama.NewAsyncProducerFromClient(Client)
+			if err != nil {
+				globallogger.Log.Errorf("[Kafka] [connectLoop] create producer error :%s", err.Error())
+			}
+			break
+		}
 	}
 }
 
 // NewClient 连接kafka
-func NewClient(addrs []string) sarama.Client {
+func NewClient(addrs []string) {
 	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Partitioner = sarama.NewRandomPartitioner
-	config.Producer.Return.Successes = true
-	config.Producer.Return.Errors = true
+	config.Producer.RequiredAcks = sarama.NoResponse
+	config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	config.Producer.Return.Successes = false
+	config.Producer.Return.Errors = false
 	config.Consumer.Return.Errors = true
 	config.Version = sarama.V0_11_0_2
-	client, err := sarama.NewClient(addrs, config)
-	if err != nil {
-		globallogger.Log.Errorf("[Kafka] NewClient, err: %+v", err)
-		reConnect(addrs, config)
-		return nil
-	}
-	globallogger.Log.Warnf("[Kafka] new client success :%+v", addrs)
-	return client
+	connectting = true
+	connectLoop(addrs, config)
+	go func() {
+		for {
+			if !connectting && Client.Closed() {
+				connectting = true
+				connectLoop(addrs, config)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 // Producer 生产者
 func Producer(topic string, value string) {
-	producer, err := sarama.NewAsyncProducerFromClient(Client)
-	if err != nil {
-		globallogger.Log.Errorf("[Kafka] [Producer] create producer error :%s", err.Error())
-		return
-	}
-	defer producer.AsyncClose()
-
-	msg := &sarama.ProducerMessage{
+	// send to chain
+	Produce.Input() <- &sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.ByteEncoder(value),
 	}
-	// send to chain
-	producer.Input() <- msg
 
 	select {
-	case suc := <-producer.Successes():
-		globallogger.Log.Warnf("[Kafka] [Producer] offset: %d, timestamp: %s, topic: %s, value: %s",
-			suc.Offset, suc.Timestamp.String(), topic, value)
-	case fail := <-producer.Errors():
+	case suc := <-Produce.Successes():
+		globallogger.Log.Warnf("[Kafka] [Producer] partition: %d, offset: %d, timestamp: %s, topic: %s, value: %s",
+			suc.Partition, suc.Offset, suc.Timestamp.String(), topic, value)
+	case fail := <-Produce.Errors():
 		globallogger.Log.Errorf("[Kafka] [Producer] failed, err: %s", fail.Err.Error())
 	default:
 		globallogger.Log.Warnf("[Kafka] [Producer] default, topic: %s, value: %s", topic, value)
@@ -89,32 +101,30 @@ type consumerGroupHandler struct {
 }
 
 // Consumer 消费者
-func Consumer() sarama.ConsumerGroup {
-	group, err := sarama.NewConsumerGroupFromClient(constant.Constant.KAFKA.ZigbeeKafkaGroupName, Client)
+func Consumer() {
+	var err error
+	Group, err = sarama.NewConsumerGroupFromClient(constant.Constant.KAFKA.ZigbeeKafkaGroupName, Client)
 	if err != nil {
 		globallogger.Log.Errorf("[Kafka] [Consumer] create consumer error %s", err.Error())
-		return nil
+		return
 	}
-	go consume(&group, constant.Constant.KAFKA.ZigbeeKafkaGroupName)
-	return group
+	go consume(&Group, constant.Constant.KAFKA.ZigbeeKafkaGroupName)
 }
 
 func consume(group *sarama.ConsumerGroup, name string) {
 	globallogger.Log.Infoln("[Kafka] [Consume]", name, "start")
 	ctx := context.Background()
-	for {
-		topics := []string{
-			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom,
-			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent,
-			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInProperty,
-			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicDelTerminal,
-			constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicUpdateTerminal,
-		}
-		handler := consumerGroupHandler{name: name}
-		err := (*group).Consume(ctx, topics, handler)
-		if err != nil {
-			globallogger.Log.Errorln("[Kafka] [Consume]", err.Error())
-		}
+	topics := []string{
+		constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInPropertyByCustom,
+		constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicSetTransConfigurationByIottransparent,
+		constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicBuildInProperty,
+		constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicDelTerminal,
+		constant.Constant.KAFKA.ZigbeeKafkaConsumeTopicUpdateTerminal,
+	}
+	handler := consumerGroupHandler{name: name}
+	err := (*group).Consume(ctx, topics, handler)
+	if err != nil {
+		globallogger.Log.Errorln("[Kafka] [Consume]", err.Error())
 	}
 }
 func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
@@ -190,9 +200,11 @@ func procIntervalCommand(terminalInfo *config.TerminalInfo, interval int) {
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSceneSwitchEM30,
-		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM:
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalIRControlEM,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
 		clusterID = 0x0001
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM:
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM, constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022:
 		clusterID = 0x0500
 	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug,
 		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30, constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30,
@@ -516,11 +528,26 @@ func procHS2AQSetUnitOfTemperature(devEUI string, unitOfTemperature uint8) {
 	})
 }
 
-func procWarningDeviceAlarm(devEUI string, alarmTime string) {
+func procWarningDeviceAlarm(devEUI string, alarmTime string, warningMode string) {
 	time, _ := strconv.ParseUint(alarmTime, 10, 16)
-	var warningControl uint8 = 0x0000
+	var warningControl uint8 = 0x17
 	if alarmTime == "0" {
-		warningControl = 0x0014
+		warningControl = 0x03
+	} else {
+		switch warningMode {
+		case "1": // Burglar
+			warningControl = 0x17
+		case "2": // Fire
+			warningControl = 0x27
+		case "3": // Emergency
+			warningControl = 0x37
+		case "4": // Police panic
+			warningControl = 0x47
+		case "5": // Fire panic
+			warningControl = 0x57
+		case "6": // Emergency panic
+			warningControl = 0x67
+		}
 	}
 	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
 		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
@@ -531,6 +558,26 @@ func procWarningDeviceAlarm(devEUI string, alarmTime string) {
 			DstEndpointIndex: 0,
 			WarningControl:   warningControl,
 			WarningTime:      uint16(time),
+		},
+	})
+}
+
+func procWarningDeviceSquawk(devEUI string, warningMode string) {
+	var squawkMode uint8
+	switch warningMode {
+	case "0": // armed
+		squawkMode = 0x03
+	case "1": // disarmed
+		squawkMode = 0x13
+	}
+	zclmsgdown.ProcZclDownMsg(common.ZclDownMsg{
+		MsgType:     globalmsgtype.MsgType.DOWNMsg.ZigbeeCmdRequestEvent,
+		DevEUI:      devEUI,
+		CommandType: common.Squawk,
+		ClusterID:   uint16(cluster.IASWarningDevice),
+		Command: common.Command{
+			DstEndpointIndex: 0,
+			SquawkMode:       squawkMode,
 		},
 	})
 }
@@ -697,7 +744,17 @@ func procBuildInPropertyByCustom(value []byte) {
 				}
 				procHS2AQSetUnitOfTemperature(terminalInfo.DevEUI, uint8(unitOfTemperature))
 			case "warning":
-				procWarningDeviceAlarm(terminalInfo.DevEUI, d.Command)
+				commandArr := strings.Split(d.Command, ",")
+				if len(commandArr) == 1 {
+					commandArr = strings.Split(d.Command, "，")
+				}
+				if len(commandArr) == 1 {
+					procWarningDeviceAlarm(terminalInfo.DevEUI, d.Command, "1")
+				} else {
+					procWarningDeviceAlarm(terminalInfo.DevEUI, commandArr[0], commandArr[1])
+				}
+			case "squawk":
+				procWarningDeviceSquawk(terminalInfo.DevEUI, d.Command)
 			case "temperatureInterval":
 				interval, _ := strconv.Atoi(d.Command)
 				procInterval(terminalInfo, uint16(cluster.TemperatureMeasurement), uint16(interval))

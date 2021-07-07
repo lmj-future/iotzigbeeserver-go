@@ -20,6 +20,7 @@ const (
 	GetWindowState              string = "getWindowState"
 	SetThreshold                string = "setThreshold"
 	StartWarning                string = "startWarning"
+	Squawk                      string = "squawk"
 	ReadAttribute               string = "readAttribute"
 	HonyarSocketRead            string = "honyarSocketRead"
 	HeimanScenesDefaultResponse string = "heimanScenesDefaultResponse"
@@ -69,6 +70,7 @@ type Command struct {
 	MinHumidity             uint16
 	WarningControl          uint8
 	WarningTime             uint16
+	SquawkMode              uint8
 	TransactionID           uint8
 	GroupID                 uint16
 	SceneID                 uint8

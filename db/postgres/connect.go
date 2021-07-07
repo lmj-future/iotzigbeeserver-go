@@ -36,7 +36,7 @@ func reConnectDB(postgresURL string) {
 		globallogger.Log.Errorln("[Postgres][Reconnect] couldn't open postgres:", err.Error())
 		reConnectDB(postgresURL)
 	} else {
-		globallogger.Log.Warnf("[Postgres][Reconnect] connect success: %+v", db)
+		globallogger.Log.Errorf("[Postgres][Reconnect] connect success: db: %+v, db.DB(): %+v", db, db.DB())
 		keepAliveDB(postgresURL)
 	}
 }
@@ -52,10 +52,10 @@ func keepAliveDB(postgresURL string) {
 			if err != nil {
 				globallogger.Log.Errorln("[Postgres][KeepAlive] couldn't open postgres:", err.Error())
 			} else {
-				globallogger.Log.Warnf("[Postgres][KeepAlive] connect success: %+v", db)
+				globallogger.Log.Errorf("[Postgres][KeepAlive] connect success: db: %+v, db.DB(): %+v", db, db.DB())
 			}
 		} else {
-			globallogger.Log.Warnf("[Postgres][KeepAlive] Ping success")
+			globallogger.Log.Errorf("[Postgres][KeepAlive] Ping success： db: %+v, db.DB(): %+v, status: %+v", db, db.DB(), db.DB().Stats())
 		}
 	}
 }
@@ -94,7 +94,7 @@ func (pg *PgConnectPool) InitDataPool(postgresConnParas map[string]interface{}) 
 		return false
 	}
 	db.DB().SetMaxOpenConns(5)
-	globallogger.Log.Infof("[Postgres] connect success: %+v", db.DB())
+	globallogger.Log.Errorf("[Postgres] connect success: db: %+v, db.DB(): %+v", db, db.DB())
 	//关闭数据库，db会被多个goroutine共享，可以不调用
 	// defer db.Close()
 	go keepAliveDB(postgresURL)

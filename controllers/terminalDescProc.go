@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -74,29 +73,57 @@ func secondlyReadBasicByEndpoint(devEUI string, ActiveEPCount string, ActiveEPLi
 		}, "", "", nil)
 }
 
-func thirdlyDiscoveryByEndpointFor(terminalInfo config.TerminalInfo, endpoint string) {
-	go publicfunction.SendTerminalDiscovery(terminalInfo, endpoint)
-}
-
-func thirdlyDiscoveryByEndpoint(devEUI string, setData config.TerminalInfo, terminalInfo config.TerminalInfo) {
+func thirdlyDiscoveryByEndpoint(devEUI string, setData config.TerminalInfo, terminalInfo config.TerminalInfo, jsonInfo publicstruct.JSONInfo) {
+	if setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141 ||
+		setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142 ||
+		setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143 {
+		setData.IsDiscovered = true
+	}
 	_, err := models.FindTerminalAndUpdate(bson.M{"devEUI": devEUI}, setData)
 	if err != nil {
 		globallogger.Log.Errorln("devEUI :", devEUI, "thirdlyDiscoveryByEndpoint FindTerminalAndUpdate err :", err)
 		return
 	}
-	for _, item := range setData.Endpoint {
-		thirdlyDiscoveryByEndpointFor(terminalInfo, item)
+	if setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141 ||
+		setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142 ||
+		setData.TmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143 {
+		tmnInfo, _ := models.GetTerminalInfoByDevEUI(devEUI)
+		procTerminalOnlineToAPP(*tmnInfo, jsonInfo)
+	} else {
+		timer := time.NewTimer(time.Second)
+		defer timer.Stop()
+		for _, item := range setData.Endpoint {
+			timer.Reset(time.Second)
+			<-timer.C
+			publicfunction.SendTerminalDiscovery(terminalInfo, item)
+		}
 	}
 }
 
-func thirdlyDiscoveryByEndpointPG(devEUI string, oSet map[string]interface{}, terminalInfo config.TerminalInfo) {
+func thirdlyDiscoveryByEndpointPG(devEUI string, oSet map[string]interface{}, terminalInfo config.TerminalInfo, jsonInfo publicstruct.JSONInfo) {
+	if oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141 ||
+		oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142 ||
+		oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143 {
+		oSet["isdiscovered"] = true
+	}
 	_, err := models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": devEUI}, oSet)
 	if err != nil {
 		globallogger.Log.Errorln("devEUI :", devEUI, "thirdlyDiscoveryByEndpointPG FindTerminalAndUpdatePG err :", err)
 		return
 	}
-	for _, item := range oSet["endpointpg"].(pq.StringArray) {
-		thirdlyDiscoveryByEndpointFor(terminalInfo, item)
+	if oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141 ||
+		oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142 ||
+		oSet["tmntype"] == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143 {
+		tmnInfo, _ := models.GetTerminalInfoByDevEUIPG(devEUI)
+		procTerminalOnlineToAPP(*tmnInfo, jsonInfo)
+	} else {
+		timer := time.NewTimer(time.Second)
+		defer timer.Stop()
+		for _, item := range oSet["endpointpg"].(pq.StringArray) {
+			timer.Reset(time.Second)
+			<-timer.C
+			publicfunction.SendTerminalDiscovery(terminalInfo, item)
+		}
 	}
 }
 
@@ -186,6 +213,10 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 				tmnType != constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM {
 				clusterIDArray = append(clusterIDArray, "0001")
 			}
+		case constant.Constant.MANUFACTURERNAME.Honyar:
+			if tmnType != constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022 {
+				clusterIDArray = append(clusterIDArray, "0001")
+			}
 		}
 	case cluster.TemperatureSensorDevice.DeviceID: //温湿度探测器
 		switch manufacturerName {
@@ -203,6 +234,14 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 					clusterIDArray = append(clusterIDArray, "0021")
 				}
 			}
+		case constant.Constant.MANUFACTURERNAME.Honyar:
+			if tmnType == constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b {
+				if endpoint == "01" {
+					clusterIDArray = append(clusterIDArray, "0001", "0402", "0405")
+				} else if endpoint == "02" {
+					clusterIDArray = append(clusterIDArray, "fe02")
+				}
+			}
 		default:
 			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
 			if tmnType == constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalHumitureDetector {
@@ -214,6 +253,8 @@ func getClusterIDByDeviceID(tmnType string, ProfileID string, DeviceID string, m
 	case cluster.IasWarningDevice.DeviceID: //声光探测
 		switch manufacturerName {
 		case constant.Constant.MANUFACTURERNAME.HeiMan:
+			clusterIDArray = append(clusterIDArray, "0500", "0502")
+		case constant.Constant.MANUFACTURERNAME.Honyar:
 			clusterIDArray = append(clusterIDArray, "0500", "0502")
 		default:
 			globallogger.Log.Warnln("getClusterIDByDeviceID unknow manufacturerName:", manufacturerName)
@@ -372,13 +413,10 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 	oSet["updatetime"] = time.Now()
 	oSet["isdiscovered"] = true
 	isEnd = true
-	for _, value := range bindInfoArray {
-		if reflect.DeepEqual(value, config.BindInfo{}) {
-			setData["isDiscovered"] = false
-			oSet["isdiscovered"] = false
-			isEnd = false
-			break
-		}
+	if endpointTemp[len(endpointTemp)-1] != Endpoint {
+		setData["isDiscovered"] = false
+		oSet["isdiscovered"] = false
+		isEnd = false
 	}
 	var terminalInfoRes *config.TerminalInfo
 	var err error
@@ -411,22 +449,7 @@ func updateTerminalBindInfo(devEUI string, terminalInfo config.TerminalInfo, Pro
 					}()
 				}
 			} else {
-				if terminalInfo.Online {
-					publicfunction.TerminalOnline(devEUI, false)
-					if constant.Constant.Iotware {
-						if terminalInfo.IsExist {
-							iotsmartspace.StateTerminalOnlineIotware(terminalInfo)
-						}
-					} else if constant.Constant.Iotedge {
-						iotsmartspace.StateTerminalOnline(devEUI)
-					}
-				}
-				go func() {
-					timer := time.NewTimer(2 * time.Second)
-					<-timer.C
-					iotsmartspace.ActionInsertSuccess(terminalInfo)
-					timer.Stop()
-				}()
+				procTerminalOnlineToAPP(terminalInfo, jsonInfo)
 			}
 		}
 	}

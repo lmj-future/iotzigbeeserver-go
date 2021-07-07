@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/h3c/iotzigbeeserver-go/config"
 	"github.com/h3c/iotzigbeeserver-go/constant"
@@ -16,25 +17,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func getTemperatureMeasurementParams(terminalID string, tmnType string, temperature float64) (interface{}, bool) {
-	bPublish := false
-	params := make(map[string]interface{}, 2)
-	var key string
-	params["terminalId"] = terminalID
-	switch tmnType {
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
-		key = iotsmartspace.HeimanHTSensorPropertyTemperature
-		bPublish = true
-	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
-		key = iotsmartspace.HeimanHS2AQPropertyTemperature
-		bPublish = true
-	default:
-		globallogger.Log.Warnf("[devEUI: %v][getTemperatureMeasurementParams] invalid tmnType: %v", terminalID, tmnType)
-	}
-	params[key] = temperature
-	return params, bPublish
-}
-
 func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attributeName string, attribute *cluster.Attribute) {
 	switch attributeName {
 	case "MeasuredValue":
@@ -42,20 +24,24 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 		if attribute.Value.(int64) > 38220 {
 			temperature = temperature - 655.36
 		}
-		if !constant.Constant.Iotware && terminalInfo.UnitOfTemperature == "F" {
-			temperature = 32 + temperature*1.8
-		}
+		// if terminalInfo.UnitOfTemperature == "F" {
+		// 	temperature = 32 + temperature*1.8
+		// }
 		temperature, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", temperature), 64)
 
 		// iotsmartspace publish msg to app
 		if constant.Constant.Iotware {
-			values := make(map[string]interface{}, 1)
-			values[iotsmartspace.IotwarePropertyTemperature] = temperature
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyCurrentTemperature{CurrentTemperature: temperature})
 		} else if constant.Constant.Iotedge {
-			params, bPublish := getTemperatureMeasurementParams(terminalInfo.DevEUI, terminalInfo.TmnType, temperature)
-			if bPublish {
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+			switch terminalInfo.TmnType {
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHTSensorPropertyTemperature{DevEUI: terminalInfo.DevEUI, Temperature: temperature}, uuid.NewV4().String())
+			case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2AQPropertyTemperature{DevEUI: terminalInfo.DevEUI, Temperature: temperature}, uuid.NewV4().String())
+			default:
+				globallogger.Log.Warnf("[devEUI: %v][temperatureMeasurementProcAttribute] invalid tmnType: %v", terminalInfo.DevEUI, terminalInfo.TmnType)
 			}
 		} else if constant.Constant.Iotprivate {
 			type appDataMsg struct {
@@ -65,7 +51,8 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 			if terminalInfo.UnitOfTemperature == "F" {
 				unitOfTemperature = "℉"
 			}
-			kafkaMsg := publicstruct.DataReportMsg{
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
 				OIDIndex:   terminalInfo.OIDIndex,
 				DevSN:      terminalInfo.DevEUI,
 				LinkType:   terminalInfo.ProfileID,
@@ -73,8 +60,7 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 				AppData: appDataMsg{
 					Temperature: strconv.FormatFloat(temperature, 'f', 2, 64) + unitOfTemperature,
 				},
-			}
-			kafkaMsgByte, _ := json.Marshal(kafkaMsg)
+			})
 			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 		}
 	case "MinMeasuredValue":
@@ -87,8 +73,7 @@ func temperatureMeasurementProcAttribute(terminalInfo config.TerminalInfo, attri
 
 //temperatureMeasurementProcReadRsp 处理readRsp（0x01）消息
 func temperatureMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		globallogger.Log.Infof("[devEUI: %v][temperatureMeasurementProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		if v.Status == cluster.ZclStatusSuccess {
 			temperatureMeasurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
@@ -100,8 +85,7 @@ func temperatureMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command
 func temperatureMeasurementProcReport(terminalInfo config.TerminalInfo, command interface{}) {
 	Command := command.(*cluster.ReportAttributesCommand)
 	globallogger.Log.Infof("[devEUI: %v][temperatureMeasurementProcReport]: command: %+v", terminalInfo.DevEUI, Command)
-	attributeReports := Command.AttributeReports
-	for _, v := range attributeReports {
+	for _, v := range Command.AttributeReports {
 		temperatureMeasurementProcAttribute(terminalInfo, v.AttributeName, v.Attribute)
 	}
 }

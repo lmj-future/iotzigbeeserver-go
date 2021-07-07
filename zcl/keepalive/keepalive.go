@@ -54,48 +54,48 @@ func procKeepAliveCheckExist(devEUI string, interval uint16) {
 }
 
 // ProcKeepAlive 处理终端保活报文
-func ProcKeepAlive(devEUI string, interval uint16) {
-	globallogger.Log.Infoln("devEUI :", devEUI, "ProcKeepAlive")
+func ProcKeepAlive(tmnInfo config.TerminalInfo, interval uint16) {
+	globallogger.Log.Infoln("devEUI :", tmnInfo.DevEUI, "ProcKeepAlive")
 	var err error
+	if constant.Constant.Iotware {
+		iotsmartspace.PublishTelemetryUpIotware(tmnInfo, iotsmartspace.IotwarePropertyKeepAliveTime{KeepAliveTime: interval})
+	}
 	if constant.Constant.MultipleInstances {
-		_, err = publicfunction.TerminalTimerRedisSet(devEUI)
+		_, err = publicfunction.TerminalTimerRedisSet(tmnInfo.DevEUI)
 	} else {
-		_, err = publicfunction.TerminalTimerFreeCacheSet(devEUI, int(interval))
+		_, err = publicfunction.TerminalTimerFreeCacheSet(tmnInfo.DevEUI, int(interval))
 	}
 	if err == nil {
-		// if value, ok := terminalStatusTimerID.Load(devEUI); ok {
-		// 	value.(*time.Timer).Stop()
-		// }
 		//3次未收到数据报文，通知离线
 		var timerID = time.NewTimer(time.Duration(3*interval+3) * time.Second)
-		terminalStatusTimerID.Store(devEUI, timerID)
+		terminalStatusTimerID.Store(tmnInfo.DevEUI, timerID)
 		go func() {
 			<-timerID.C
 			timerID.Stop()
-			if value, ok := terminalStatusTimerID.Load(devEUI); ok {
+			if value, ok := terminalStatusTimerID.Load(tmnInfo.DevEUI); ok {
 				if timerID == value.(*time.Timer) {
-					terminalStatusTimerID.Delete(devEUI)
+					terminalStatusTimerID.Delete(tmnInfo.DevEUI)
 					var terminalTimerUpdateTime int64
 					if constant.Constant.MultipleInstances {
-						terminalTimerUpdateTime, err = publicfunction.TerminalTimerRedisGet(devEUI)
+						terminalTimerUpdateTime, err = publicfunction.TerminalTimerRedisGet(tmnInfo.DevEUI)
 					} else {
-						terminalTimerUpdateTime, err = publicfunction.TerminalTimerFreeCacheGet(devEUI)
+						terminalTimerUpdateTime, err = publicfunction.TerminalTimerFreeCacheGet(tmnInfo.DevEUI)
 					}
 					if err == nil {
 						var terminalInfo *config.TerminalInfo
 						var err error
 						if constant.Constant.UsePostgres {
-							terminalInfo, err = models.GetTerminalInfoByDevEUIPG(devEUI)
+							terminalInfo, err = models.GetTerminalInfoByDevEUIPG(tmnInfo.DevEUI)
 						} else {
-							terminalInfo, err = models.GetTerminalInfoByDevEUI(devEUI)
+							terminalInfo, err = models.GetTerminalInfoByDevEUI(tmnInfo.DevEUI)
 						}
 						if terminalInfo != nil && terminalInfo.Interval != 0 {
 							interval = uint16(terminalInfo.Interval)
 						}
 						if time.Now().UnixNano()-terminalTimerUpdateTime > int64(time.Duration(3*interval)*time.Second) {
-							globallogger.Log.Infoln("devEUI:", devEUI, "ProcKeepAlive server has not already recv data for",
+							globallogger.Log.Infoln("devEUI:", tmnInfo.DevEUI, "ProcKeepAlive server has not already recv data for",
 								(time.Now().UnixNano()-terminalTimerUpdateTime)/int64(time.Second), "seconds. Then terminal offline")
-							publicfunction.TerminalOffline(devEUI)
+							publicfunction.TerminalOffline(tmnInfo.DevEUI)
 							if err == nil && terminalInfo != nil {
 								if constant.Constant.Iotware {
 									if !terminalInfo.LeaveState {
@@ -105,22 +105,22 @@ func ProcKeepAlive(devEUI string, interval uint16) {
 									}
 								} else if constant.Constant.Iotedge {
 									if !terminalInfo.LeaveState {
-										iotsmartspace.StateTerminalOffline(devEUI)
+										iotsmartspace.StateTerminalOffline(tmnInfo.DevEUI)
 									} else {
-										iotsmartspace.StateTerminalLeave(devEUI)
+										iotsmartspace.StateTerminalLeave(tmnInfo.DevEUI)
 									}
 								}
 							}
 							if constant.Constant.MultipleInstances {
-								publicfunction.DeleteRedisTerminalTimer(devEUI)
+								publicfunction.DeleteRedisTerminalTimer(tmnInfo.DevEUI)
 							} else {
-								publicfunction.DeleteFreeCacheTerminalTimer(devEUI)
+								publicfunction.DeleteFreeCacheTerminalTimer(tmnInfo.DevEUI)
 							}
 						}
 					}
 				}
 			}
 		}()
-		procKeepAliveCheckExist(devEUI, interval)
+		procKeepAliveCheckExist(tmnInfo.DevEUI, interval)
 	}
 }

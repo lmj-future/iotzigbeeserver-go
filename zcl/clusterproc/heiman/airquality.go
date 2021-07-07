@@ -3,6 +3,7 @@ package heiman
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/globalsign/mgo/bson"
 	"github.com/h3c/iotzigbeeserver-go/config"
@@ -18,164 +19,102 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func airQualityMeasurementProcAttribute(devEUI string, attributeName string, attribute *cluster.Attribute, bPublish bool, oSet bson.M,
-	oSetPG map[string]interface{}, params map[string]interface{}, values map[string]interface{}) (bool, bson.M, map[string]interface{},
-	map[string]interface{}, map[string]interface{}) {
-	switch attributeName {
-	case "Language":
-		Value := attribute.Value.(uint64)
-		if Value == 0 {
-			oSet["language"] = "Chinese"
-			oSetPG["language"] = "Chinese"
-		} else if Value == 1 {
-			oSet["language"] = "English"
-			oSetPG["language"] = "English"
-		} else {
-			oSet["language"] = "Invalid"
-			oSetPG["language"] = "Invalid"
-		}
-	case "UnitOfTemperature":
-		Value := attribute.Value.(uint64)
-		if Value == 0 {
-			oSet["unitOfTemperature"] = "C"
-			oSetPG["unitoftemperature"] = "C"
-		} else if Value == 1 {
-			oSet["unitOfTemperature"] = "F"
-			oSetPG["unitoftemperature"] = "F"
-		} else {
-			oSet["unitOfTemperature"] = "Invalid"
-			oSetPG["unitoftemperature"] = "Invalid"
-		}
-	case "BatteryState":
-		Value := attribute.Value.(uint64)
-		if Value == 0 {
-			oSet["batteryState"] = "unCharge"
-			oSetPG["batterystate"] = "unCharge"
-			params[iotsmartspace.HeimanHS2AQPropertyBatteryState] = "0"
-			values[iotsmartspace.IotwarePropertyAirState] = "0"
-			bPublish = true
-		} else if Value == 1 {
-			oSet["batteryState"] = "charging"
-			oSetPG["batterystate"] = "charging"
-			params[iotsmartspace.HeimanHS2AQPropertyBatteryState] = "1"
-			values[iotsmartspace.IotwarePropertyAirState] = "1"
-			bPublish = true
-		} else if Value == 2 {
-			oSet["batteryState"] = "fullCharged"
-			oSetPG["batterystate"] = "fullCharged"
-			params[iotsmartspace.HeimanHS2AQPropertyBatteryState] = "2"
-			values[iotsmartspace.IotwarePropertyAirState] = "2"
-			bPublish = true
-		} else {
-			oSet["batteryState"] = "Invalid"
-			oSetPG["batterystate"] = "Invalid"
-		}
-	case "PM10MeasuredValue":
-		Value := attribute.Value.(uint64)
-		oSet["PM10"] = strconv.FormatUint(Value, 10)
-		oSetPG["pm10"] = strconv.FormatUint(Value, 10)
-		params[iotsmartspace.HeimanHS2AQPropertyPM10] = strconv.FormatUint(Value, 10)
-		values[iotsmartspace.IotwarePropertyPM10] = strconv.FormatUint(Value, 10)
-		bPublish = true
-	case "TVOCMeasuredValue":
-		Value := attribute.Value.(uint64)
-		oSet["TVOC"] = strconv.FormatUint(Value, 10)
-		oSetPG["tvoc"] = strconv.FormatUint(Value, 10)
-		params[iotsmartspace.HeimanHS2AQPropertyTVOC] = strconv.FormatUint(Value, 10)
-		values[iotsmartspace.IotwarePropertyTVOC] = strconv.FormatUint(Value, 10)
-		bPublish = true
-	case "AQIMeasuredValue":
-		Value := attribute.Value.(uint64)
-		oSet["AQI"] = strconv.FormatUint(Value, 10)
-		oSetPG["aqi"] = strconv.FormatUint(Value, 10)
-		params[iotsmartspace.HeimanHS2AQPropertyAQI] = strconv.FormatUint(Value, 10)
-		values[iotsmartspace.IotwarePropertyAQI] = strconv.FormatUint(Value, 10)
-		bPublish = true
-	case "MaxTemperature":
-		Value := attribute.Value.(int64)
-		oSet["maxTemperature"] = strconv.FormatInt(Value, 10)
-		oSetPG["maxtemperature"] = strconv.FormatInt(Value, 10)
-	case "MinTemperature":
-		Value := attribute.Value.(int64)
-		oSet["minTemperature"] = strconv.FormatInt(Value, 10)
-		oSetPG["mintemperature"] = strconv.FormatInt(Value, 10)
-	case "MaxHumidity":
-		Value := attribute.Value.(uint64)
-		oSet["maxHumidity"] = strconv.FormatUint(Value, 10)
-		oSetPG["maxhumidity"] = strconv.FormatUint(Value, 10)
-	case "MinHumidity":
-		Value := attribute.Value.(uint64)
-		oSet["minHumidity"] = strconv.FormatUint(Value, 10)
-		oSetPG["minhumidity"] = strconv.FormatUint(Value, 10)
-	case "Disturb":
-		Value := attribute.Value.(uint64)
-		disturb := strconv.FormatUint(Value, 16)
-		disturb = "0000" + disturb
-		disturb = disturb[len(disturb)-4:]
-		oSet["disturb"] = disturb
-		oSetPG["disturb"] = disturb
-	default:
-		globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcAttribute] invalid attributeName: %v", devEUI, attributeName)
-	}
-	return bPublish, oSet, oSetPG, params, values
-}
-
-func airQualityMeasurementProcMsg2Kafka(terminalInfo config.TerminalInfo, values map[string]interface{}) {
-	kafkaMsg := publicstruct.DataReportMsg{
-		OIDIndex:   terminalInfo.OIDIndex,
-		DevSN:      terminalInfo.DevEUI,
-		LinkType:   terminalInfo.ProfileID,
-		DeviceType: terminalInfo.TmnType2,
-	}
-	if PM10, ok := values[iotsmartspace.IotwarePropertyPM10]; ok {
-		type appDataMsg struct {
-			PM10 string `json:"PM10"`
-		}
-		kafkaMsg.AppData = appDataMsg{PM10: PM10.(string) + "ug/m^3"}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-	}
-	if AQI, ok := values[iotsmartspace.IotwarePropertyAQI]; ok {
-		type appDataMsg struct {
-			AQI string `json:"AQI"`
-		}
-		kafkaMsg.AppData = appDataMsg{AQI: AQI.(string)}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-	}
-	if batteryState, ok := values[iotsmartspace.IotwarePropertyAirState]; ok {
-		type appDataMsg struct {
-			BatteryState string `json:"batteryState"`
-		}
-		if batteryState == "0" {
-			batteryState = "未充电"
-		} else if batteryState == "1" {
-			batteryState = "充电中"
-		} else if batteryState == "2" {
-			batteryState = "已充满"
-		}
-		kafkaMsg.AppData = appDataMsg{BatteryState: batteryState.(string)}
-		kafkaMsgByte, _ := json.Marshal(kafkaMsg)
-		kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
-	}
-}
-
-//airQualityMeasurementProcReadRsp 处理readRsp（0x01）消息
-func airQualityMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
+func airQualityMeasurementProcReadRspIotware(terminalInfo config.TerminalInfo, command interface{}) {
 	oSet := bson.M{}
 	oSetPG := make(map[string]interface{})
-	params := make(map[string]interface{}, 11)
-	values := make(map[string]interface{}, 11)
-	params["terminalId"] = terminalInfo.DevEUI
 	var bPublish = false
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
-		globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
+	var value iotsmartspace.IotwarePropertyPM10PowerStateAQI = iotsmartspace.IotwarePropertyPM10PowerStateAQI{}
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReadRspIotware]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		if v.Status != cluster.ZclStatusSuccess {
 			continue
 		}
-		bPublish, oSet, oSetPG, params, values = airQualityMeasurementProcAttribute(terminalInfo.DevEUI, v.AttributeName, v.Attribute,
-			bPublish, oSet, oSetPG, params, values)
+		switch v.AttributeName {
+		case "Language":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["language"] = "Chinese"
+				oSetPG["language"] = "Chinese"
+			} else if Value == 1 {
+				oSet["language"] = "English"
+				oSetPG["language"] = "English"
+			} else {
+				oSet["language"] = "Invalid"
+				oSetPG["language"] = "Invalid"
+			}
+		case "UnitOfTemperature":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["unitOfTemperature"] = "C"
+				oSetPG["unitoftemperature"] = "C"
+			} else if Value == 1 {
+				oSet["unitOfTemperature"] = "F"
+				oSetPG["unitoftemperature"] = "F"
+			} else {
+				oSet["unitOfTemperature"] = "Invalid"
+				oSetPG["unitoftemperature"] = "Invalid"
+			}
+		case "BatteryState":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["batteryState"] = "unCharge"
+				oSetPG["batterystate"] = "unCharge"
+				value.PowerState = "0"
+				bPublish = true
+			} else if Value == 1 {
+				oSet["batteryState"] = "charging"
+				oSetPG["batterystate"] = "charging"
+				value.PowerState = "1"
+				bPublish = true
+			} else if Value == 2 {
+				oSet["batteryState"] = "fullCharged"
+				oSetPG["batterystate"] = "fullCharged"
+				value.PowerState = "2"
+				bPublish = true
+			} else {
+				oSet["batteryState"] = "Invalid"
+				oSetPG["batterystate"] = "Invalid"
+			}
+		case "PM10MeasuredValue":
+			value.PM10 = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+			oSet["PM10"] = value.PM10
+			oSetPG["pm10"] = value.PM10
+			bPublish = true
+		case "TVOCMeasuredValue":
+			Value := v.Attribute.Value.(uint64)
+			oSet["TVOC"] = strconv.FormatUint(Value, 10)
+			oSetPG["tvoc"] = strconv.FormatUint(Value, 10)
+		case "AQIMeasuredValue":
+			value.AQI = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+			oSet["AQI"] = value.AQI
+			oSetPG["aqi"] = value.AQI
+			bPublish = true
+		case "MaxTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["maxTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["maxtemperature"] = strconv.FormatInt(Value, 10)
+		case "MinTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["minTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["mintemperature"] = strconv.FormatInt(Value, 10)
+		case "MaxHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["maxHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["maxhumidity"] = strconv.FormatUint(Value, 10)
+		case "MinHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["minHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["minhumidity"] = strconv.FormatUint(Value, 10)
+		case "Disturb":
+			Value := v.Attribute.Value.(uint64)
+			disturb := strconv.FormatUint(Value, 16)
+			disturb = "0000" + disturb
+			disturb = disturb[len(disturb)-4:]
+			oSet["disturb"] = disturb
+			oSetPG["disturb"] = disturb
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcReadRspIotware] invalid attributeName: %v", terminalInfo.DevEUI, v.AttributeName)
+		}
 	}
 	if oSet["disturb"] != nil || oSet["minHumidity"] != nil || oSet["maxHumidity"] != nil || oSet["minTemperature"] != nil || oSet["maxTemperature"] != nil {
 		if constant.Constant.UsePostgres {
@@ -191,14 +130,275 @@ func airQualityMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command 
 	}
 
 	if bPublish {
-		// iotsmartspace publish msg to app
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
-		} else if constant.Constant.Iotprivate {
-			airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+		iotsmartspace.PublishTelemetryUpIotware(terminalInfo, value)
+	}
+}
+func airQualityMeasurementProcReadRspIotedge(terminalInfo config.TerminalInfo, command interface{}) {
+	oSet := bson.M{}
+	oSetPG := make(map[string]interface{})
+	var bPublish = false
+	var value iotsmartspace.HeimanHS2AQProperty = iotsmartspace.HeimanHS2AQProperty{
+		DevEUI: terminalInfo.DevEUI,
+	}
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReadRspIotedge]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
+		if v.Status != cluster.ZclStatusSuccess {
+			continue
 		}
+		switch v.AttributeName {
+		case "Language":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["language"] = "Chinese"
+				oSetPG["language"] = "Chinese"
+			} else if Value == 1 {
+				oSet["language"] = "English"
+				oSetPG["language"] = "English"
+			} else {
+				oSet["language"] = "Invalid"
+				oSetPG["language"] = "Invalid"
+			}
+		case "UnitOfTemperature":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["unitOfTemperature"] = "C"
+				oSetPG["unitoftemperature"] = "C"
+			} else if Value == 1 {
+				oSet["unitOfTemperature"] = "F"
+				oSetPG["unitoftemperature"] = "F"
+			} else {
+				oSet["unitOfTemperature"] = "Invalid"
+				oSetPG["unitoftemperature"] = "Invalid"
+			}
+		case "BatteryState":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["batteryState"] = "unCharge"
+				oSetPG["batterystate"] = "unCharge"
+				value.BatteryState = "0"
+				bPublish = true
+			} else if Value == 1 {
+				oSet["batteryState"] = "charging"
+				oSetPG["batterystate"] = "charging"
+				value.BatteryState = "1"
+				bPublish = true
+			} else if Value == 2 {
+				oSet["batteryState"] = "fullCharged"
+				oSetPG["batterystate"] = "fullCharged"
+				value.BatteryState = "2"
+				bPublish = true
+			} else {
+				oSet["batteryState"] = "Invalid"
+				oSetPG["batterystate"] = "Invalid"
+			}
+		case "PM10MeasuredValue":
+			value.PM10 = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+			oSet["PM10"] = value.PM10
+			oSetPG["pm10"] = value.PM10
+			bPublish = true
+		case "TVOCMeasuredValue":
+			value.TVOC = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+			oSet["TVOC"] = value.TVOC
+			oSetPG["tvoc"] = value.TVOC
+			bPublish = true
+		case "AQIMeasuredValue":
+			value.AQI = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
+			oSet["AQI"] = value.AQI
+			oSetPG["aqi"] = value.AQI
+			bPublish = true
+		case "MaxTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["maxTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["maxtemperature"] = strconv.FormatInt(Value, 10)
+		case "MinTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["minTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["mintemperature"] = strconv.FormatInt(Value, 10)
+		case "MaxHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["maxHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["maxhumidity"] = strconv.FormatUint(Value, 10)
+		case "MinHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["minHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["minhumidity"] = strconv.FormatUint(Value, 10)
+		case "Disturb":
+			Value := v.Attribute.Value.(uint64)
+			disturb := strconv.FormatUint(Value, 16)
+			disturb = "0000" + disturb
+			disturb = disturb[len(disturb)-4:]
+			oSet["disturb"] = disturb
+			oSetPG["disturb"] = disturb
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcReadRspIotedge] invalid attributeName: %v", terminalInfo.DevEUI, v.AttributeName)
+		}
+	}
+	if oSet["disturb"] != nil || oSet["minHumidity"] != nil || oSet["maxHumidity"] != nil || oSet["minTemperature"] != nil || oSet["maxTemperature"] != nil {
+		if constant.Constant.UsePostgres {
+			models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSetPG)
+		} else {
+			models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, oSet)
+		}
+		var key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.DevEUI
+		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.NwkAddr
+		}
+		publicfunction.DeleteTerminalInfoListCache(key)
+	}
+
+	if bPublish {
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, value, uuid.NewV4().String())
+	}
+}
+func airQualityMeasurementProcReadRspIotprivate(terminalInfo config.TerminalInfo, command interface{}) {
+	oSet := bson.M{}
+	oSetPG := make(map[string]interface{})
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
+		globallogger.Log.Infof("[devEUI: %v][airQualityMeasurementProcReadRspIotprivate]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
+		if v.Status != cluster.ZclStatusSuccess {
+			continue
+		}
+		switch v.AttributeName {
+		case "Language":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["language"] = "Chinese"
+				oSetPG["language"] = "Chinese"
+			} else if Value == 1 {
+				oSet["language"] = "English"
+				oSetPG["language"] = "English"
+			} else {
+				oSet["language"] = "Invalid"
+				oSetPG["language"] = "Invalid"
+			}
+		case "UnitOfTemperature":
+			Value := v.Attribute.Value.(uint64)
+			if Value == 0 {
+				oSet["unitOfTemperature"] = "C"
+				oSetPG["unitoftemperature"] = "C"
+			} else if Value == 1 {
+				oSet["unitOfTemperature"] = "F"
+				oSetPG["unitoftemperature"] = "F"
+			} else {
+				oSet["unitOfTemperature"] = "Invalid"
+				oSetPG["unitoftemperature"] = "Invalid"
+			}
+		case "BatteryState":
+			type appDataMsg struct {
+				BatteryState string `json:"batteryState"`
+			}
+			Value := v.Attribute.Value.(uint64)
+			var batteryState string
+			if Value == 0 {
+				oSet["batteryState"] = "unCharge"
+				oSetPG["batterystate"] = "unCharge"
+				batteryState = "未充电"
+			} else if Value == 1 {
+				oSet["batteryState"] = "charging"
+				oSetPG["batterystate"] = "charging"
+				batteryState = "充电中"
+			} else if Value == 2 {
+				oSet["batteryState"] = "fullCharged"
+				oSetPG["batterystate"] = "fullCharged"
+				batteryState = "已充满"
+			} else {
+				oSet["batteryState"] = "Invalid"
+				oSetPG["batterystate"] = "Invalid"
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{BatteryState: batteryState},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		case "PM10MeasuredValue":
+			Value := v.Attribute.Value.(uint64)
+			oSet["PM10"] = strconv.FormatUint(Value, 10)
+			oSetPG["pm10"] = strconv.FormatUint(Value, 10)
+			type appDataMsg struct {
+				PM10 string `json:"PM10"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{PM10: strconv.FormatUint(Value, 10) + "ug/m^3"},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		case "TVOCMeasuredValue":
+			Value := v.Attribute.Value.(uint64)
+			oSet["TVOC"] = strconv.FormatUint(Value, 10)
+			oSetPG["tvoc"] = strconv.FormatUint(Value, 10)
+		case "AQIMeasuredValue":
+			Value := v.Attribute.Value.(uint64)
+			oSet["AQI"] = strconv.FormatUint(Value, 10)
+			oSetPG["aqi"] = strconv.FormatUint(Value, 10)
+			type appDataMsg struct {
+				AQI string `json:"AQI"`
+			}
+			kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+				Time:       time.Now(),
+				OIDIndex:   terminalInfo.OIDIndex,
+				DevSN:      terminalInfo.DevEUI,
+				LinkType:   terminalInfo.ProfileID,
+				DeviceType: terminalInfo.TmnType2,
+				AppData:    appDataMsg{AQI: strconv.FormatUint(Value, 10)},
+			})
+			kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
+		case "MaxTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["maxTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["maxtemperature"] = strconv.FormatInt(Value, 10)
+		case "MinTemperature":
+			Value := v.Attribute.Value.(int64)
+			oSet["minTemperature"] = strconv.FormatInt(Value, 10)
+			oSetPG["mintemperature"] = strconv.FormatInt(Value, 10)
+		case "MaxHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["maxHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["maxhumidity"] = strconv.FormatUint(Value, 10)
+		case "MinHumidity":
+			Value := v.Attribute.Value.(uint64)
+			oSet["minHumidity"] = strconv.FormatUint(Value, 10)
+			oSetPG["minhumidity"] = strconv.FormatUint(Value, 10)
+		case "Disturb":
+			Value := v.Attribute.Value.(uint64)
+			disturb := strconv.FormatUint(Value, 16)
+			disturb = "0000" + disturb
+			disturb = disturb[len(disturb)-4:]
+			oSet["disturb"] = disturb
+			oSetPG["disturb"] = disturb
+		default:
+			globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcReadRspIotprivate] invalid attributeName: %v", terminalInfo.DevEUI, v.AttributeName)
+		}
+	}
+	if oSet["disturb"] != nil || oSet["minHumidity"] != nil || oSet["maxHumidity"] != nil || oSet["minTemperature"] != nil || oSet["maxTemperature"] != nil {
+		if constant.Constant.UsePostgres {
+			models.FindTerminalAndUpdatePG(map[string]interface{}{"deveui": terminalInfo.DevEUI}, oSetPG)
+		} else {
+			models.FindTerminalAndUpdate(bson.M{"devEUI": terminalInfo.DevEUI}, oSet)
+		}
+		var key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.DevEUI
+		if terminalInfo.UDPVersion == constant.Constant.UDPVERSION.Version0102 {
+			key = terminalInfo.APMac + terminalInfo.ModuleID + terminalInfo.NwkAddr
+		}
+		publicfunction.DeleteTerminalInfoListCache(key)
+	}
+}
+
+//airQualityMeasurementProcReadRsp 处理readRsp（0x01）消息
+func airQualityMeasurementProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
+	if constant.Constant.Iotware {
+		airQualityMeasurementProcReadRspIotware(terminalInfo, command)
+	} else if constant.Constant.Iotedge {
+		airQualityMeasurementProcReadRspIotedge(terminalInfo, command)
+	} else if constant.Constant.Iotprivate {
+		airQualityMeasurementProcReadRspIotprivate(terminalInfo, command)
 	}
 }
 
@@ -215,8 +415,7 @@ func airQualityMeasurementProcWriteResponse(terminalInfo config.TerminalInfo, co
 		if contentFrame != nil && contentFrame.CommandName == "WriteAttributes" {
 			oSet := bson.M{}
 			oSetPG := make(map[string]interface{})
-			contentCommand := contentFrame.Command.(*cluster.WriteAttributesCommand)
-			for _, v := range contentCommand.WriteAttributeRecords {
+			for _, v := range contentFrame.Command.(*cluster.WriteAttributesCommand).WriteAttributeRecords {
 				switch v.AttributeName {
 				case "MaxTemperature":
 					oSet["maxTemperature"] = strconv.FormatInt(v.Attribute.Value.(int64), 10)
@@ -253,13 +452,14 @@ func airQualityMeasurementProcWriteResponse(terminalInfo config.TerminalInfo, co
 			}
 		}
 	}
-	params := make(map[string]interface{}, 2)
-	params["code"] = code
-	params["message"] = message
 	if constant.Constant.Iotware {
 		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
 	} else if constant.Constant.Iotedge {
-		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+		type response struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, response{Code: code, Message: message}, msgID)
 	}
 }
 
@@ -278,48 +478,70 @@ func airQualityMeasurementProcReport(terminalInfo config.TerminalInfo, command i
 				airState = "2"
 			}
 			if constant.Constant.Iotware {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyAirState] = airState
-				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPowerState{PowerState: airState})
 			} else if constant.Constant.Iotedge {
-				params := make(map[string]interface{}, 2)
-				params["terminalId"] = terminalInfo.DevEUI
-				params[iotsmartspace.HeimanHS2AQPropertyBatteryState] = airState
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2AQPropertyBatteryState{DevEUI: terminalInfo.DevEUI, BatteryState: airState}, uuid.NewV4().String())
 			} else if constant.Constant.Iotprivate {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyAirState] = airState
-				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+				type appDataMsg struct {
+					BatteryState string `json:"batteryState"`
+				}
+				if airState == "0" {
+					airState = "未充电"
+				} else if airState == "1" {
+					airState = "充电中"
+				} else if airState == "2" {
+					airState = "已充满"
+				}
+				kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+					Time:       time.Now(),
+					OIDIndex:   terminalInfo.OIDIndex,
+					DevSN:      terminalInfo.DevEUI,
+					LinkType:   terminalInfo.ProfileID,
+					DeviceType: terminalInfo.TmnType2,
+					AppData:    appDataMsg{BatteryState: airState},
+				})
+				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 			}
 		case "PM10MeasuredValue":
 			if constant.Constant.Iotware {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyPM10{PM10: strconv.FormatUint(v.Attribute.Value.(uint64), 10)})
 			} else if constant.Constant.Iotedge {
-				params := make(map[string]interface{}, 2)
-				params["terminalId"] = terminalInfo.DevEUI
-				params[iotsmartspace.HeimanHS2AQPropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2AQPropertyPM10{DevEUI: terminalInfo.DevEUI, PM10: strconv.FormatUint(v.Attribute.Value.(uint64), 10)}, uuid.NewV4().String())
 			} else if constant.Constant.Iotprivate {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyPM10] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+				type appDataMsg struct {
+					PM10 string `json:"PM10"`
+				}
+				kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+					Time:       time.Now(),
+					OIDIndex:   terminalInfo.OIDIndex,
+					DevSN:      terminalInfo.DevEUI,
+					LinkType:   terminalInfo.ProfileID,
+					DeviceType: terminalInfo.TmnType2,
+					AppData:    appDataMsg{PM10: strconv.FormatUint(v.Attribute.Value.(uint64), 10) + "ug/m^3"},
+				})
+				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 			}
 		case "AQIMeasuredValue":
 			if constant.Constant.Iotware {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, values)
+				iotsmartspace.PublishTelemetryUpIotware(terminalInfo, iotsmartspace.IotwarePropertyAQI{AQI: strconv.FormatUint(v.Attribute.Value.(uint64), 10)})
 			} else if constant.Constant.Iotedge {
-				params := make(map[string]interface{}, 2)
-				params["terminalId"] = terminalInfo.DevEUI
-				params[iotsmartspace.HeimanHS2AQPropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp, params, uuid.NewV4().String())
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyUp,
+					iotsmartspace.HeimanHS2AQPropertyAQI{DevEUI: terminalInfo.DevEUI, AQI: strconv.FormatUint(v.Attribute.Value.(uint64), 10)}, uuid.NewV4().String())
 			} else if constant.Constant.Iotprivate {
-				values := make(map[string]interface{}, 1)
-				values[iotsmartspace.IotwarePropertyAQI] = strconv.FormatUint(v.Attribute.Value.(uint64), 10)
-				airQualityMeasurementProcMsg2Kafka(terminalInfo, values)
+				type appDataMsg struct {
+					AQI string `json:"AQI"`
+				}
+				kafkaMsgByte, _ := json.Marshal(publicstruct.DataReportMsg{
+					Time:       time.Now(),
+					OIDIndex:   terminalInfo.OIDIndex,
+					DevSN:      terminalInfo.DevEUI,
+					LinkType:   terminalInfo.ProfileID,
+					DeviceType: terminalInfo.TmnType2,
+					AppData:    appDataMsg{AQI: strconv.FormatUint(v.Attribute.Value.(uint64), 10)},
+				})
+				kafka.Producer(constant.Constant.KAFKA.ZigbeeKafkaProduceTopicDataReportMsg, string(kafkaMsgByte))
 			}
 		default:
 			globallogger.Log.Warnf("[devEUI: %v][airQualityMeasurementProcReport] invalid attributeName: %v", terminalInfo.DevEUI, v.AttributeName)

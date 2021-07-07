@@ -19,13 +19,15 @@ func iasWarningDeviceProcDefaultResponse(terminalInfo config.TerminalInfo, comma
 		code = -1
 		message = "failed"
 	}
-	params := make(map[string]interface{}, 2)
-	params["code"] = code
-	params["message"] = message
 	if constant.Constant.Iotware {
 		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
 	} else if constant.Constant.Iotedge {
-		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+		type warningDeviceDefaultResponse struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		}
+		iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+			warningDeviceDefaultResponse{Code: code, Message: message}, msgID)
 	}
 
 }

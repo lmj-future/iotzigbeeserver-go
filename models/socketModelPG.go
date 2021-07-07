@@ -12,14 +12,14 @@ var socketInfoModelCheckNum = 0
 
 func getSocketInfoModelPG() *gorm.DB {
 	db := postgres.GetInstance().GetPostGresDB()
-	if !db.HasTable("socketinfos") {
-		db.Table("socketinfos").CreateTable(&config.SocketInfo{})
+	if !db.HasTable("zigbeesocketinfos") {
+		db.Table("zigbeesocketinfos").CreateTable(&config.SocketInfo{})
 	} else {
 		if socketInfoModelCheckNum == 0 {
 			socketInfoModelCheckNum++
-			db.Table("socketinfos").AutoMigrate(&config.SocketInfo{})
+			db.Table("zigbeesocketinfos").AutoMigrate(&config.SocketInfo{})
 		} else {
-			db.Table("socketinfos")
+			db.Table("zigbeesocketinfos")
 		}
 	}
 	return db

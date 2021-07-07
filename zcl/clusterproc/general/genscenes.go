@@ -11,8 +11,7 @@ import (
 
 //genScenesProcReadRsp 处理readRsp（0x01）消息
 func genScenesProcReadRsp(terminalInfo config.TerminalInfo, command interface{}) {
-	readAttributesRsp := command.(*cluster.ReadAttributesResponse)
-	for _, v := range readAttributesRsp.ReadAttributeStatuses {
+	for _, v := range command.(*cluster.ReadAttributesResponse).ReadAttributeStatuses {
 		globallogger.Log.Infof("[devEUI: %v][genScenesProcReadRsp]: readAttributesRsp: %+v", terminalInfo.DevEUI, v)
 		if v.Status == cluster.ZclStatusSuccess {
 			globallogger.Log.Infof("[devEUI: %v][genScenesProcReadRsp]: read rsp success: status %v", terminalInfo.DevEUI, v.Status)
@@ -106,125 +105,114 @@ func genScenesProcAddSceneResponse(terminalInfo config.TerminalInfo, command int
 		code = -1
 		message = "failed"
 	}
-	params := make(map[string]interface{}, 4)
-	params["code"] = code
-	params["message"] = message
-	params["terminalId"] = terminalInfo.DevEUI
-	var key string
-	var value string
-	var bPublish = false
-	if contentFrame != nil && contentFrame.CommandName == "AddScene" {
-		contentCommand := contentFrame.Command.(*cluster.AddSceneCommand)
-		// switch contentCommand.SceneName[1:] {
-		// case "\x01\x01":
-		// 	value = "01"
-		// case "\x02\x01":
-		// 	value = "02"
-		// case "\x03\x01":
-		// 	value = "03"
-		// case "\x04\x01":
-		// 	value = "04"
-		// case "\x05\x01":
-		// 	value = "05"
-		// case "\x06\x01":
-		// 	value = "06"
-		// case "\x07\x01":
-		// 	value = "07"
-		// case "\x08\x01":
-		// 	value = "08"
-		// case "\x09\x01":
-		// 	value = "09"
-		// case "\x0a\x01":
-		// 	value = "0a"
-		// case "\x0b\x01":
-		// 	value = "0b"
-		// case "\x0c\x01":
-		// 	value = "0c"
-		// case "\x0d\x01":
-		// 	value = "0d"
-		// case "\x0e\x01":
-		// 	value = "0e"
-		// case "\x0f\x01":
-		// 	value = "0f"
-		// case "\x10\x01":
-		// 	value = "10"
-		// case "\x11\x01":
-		// 	value = "11"
-		// case "\x12\x01":
-		// 	value = "12"
-		// case "\x13\x01":
-		// 	value = "13"
-		// case "\x14\x01":
-		// 	value = "14"
-		// case "\x15\x01":
-		// 	value = "15"
-		// case "\x16\x01":
-		// 	value = "16"
-		// case "\x17\x01":
-		// 	value = "17"
-		// case "\x18\x01":
-		// 	value = "18"
-		// case "\x19\x01":
-		// 	value = "19"
-		// case "\x1a\x01":
-		// 	value = "1a"
-		// case "\x1b\x01":
-		// 	value = "1b"
-		// case "\x1c\x01":
-		// 	value = "1c"
-		// case "\x1d\x01":
-		// 	value = "1d"
-		// case "\x1e\x01":
-		// 	value = "1e"
-		// case "\x1f\x01":
-		// 	value = "1f"
-		// case " \x01":
-		// 	value = "20"
-		// case "!\x01":
-		// 	value = "21"
-		// }
-		if dataTemp != "" && len(dataTemp) > 26 {
-			switch dataTemp[18:26] {
-			case "D3E9C0D6":
-				value = "娱乐"
-			case "D0DDCFA2":
-				value = "休息"
-			case "C9CFB0E0":
-				value = "上班"
-			case "CFC2B0E0":
-				value = "下班"
-			case "B0ECB9AB":
-				value = "办公"
+	if constant.Constant.Iotware {
+		iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
+	} else if constant.Constant.Iotedge {
+		var value string
+		if contentFrame != nil && contentFrame.CommandName == "AddScene" {
+			contentCommand := contentFrame.Command.(*cluster.AddSceneCommand)
+			// switch contentCommand.SceneName[1:] {
+			// case "\x01\x01":
+			// 	value = "01"
+			// case "\x02\x01":
+			// 	value = "02"
+			// case "\x03\x01":
+			// 	value = "03"
+			// case "\x04\x01":
+			// 	value = "04"
+			// case "\x05\x01":
+			// 	value = "05"
+			// case "\x06\x01":
+			// 	value = "06"
+			// case "\x07\x01":
+			// 	value = "07"
+			// case "\x08\x01":
+			// 	value = "08"
+			// case "\x09\x01":
+			// 	value = "09"
+			// case "\x0a\x01":
+			// 	value = "0a"
+			// case "\x0b\x01":
+			// 	value = "0b"
+			// case "\x0c\x01":
+			// 	value = "0c"
+			// case "\x0d\x01":
+			// 	value = "0d"
+			// case "\x0e\x01":
+			// 	value = "0e"
+			// case "\x0f\x01":
+			// 	value = "0f"
+			// case "\x10\x01":
+			// 	value = "10"
+			// case "\x11\x01":
+			// 	value = "11"
+			// case "\x12\x01":
+			// 	value = "12"
+			// case "\x13\x01":
+			// 	value = "13"
+			// case "\x14\x01":
+			// 	value = "14"
+			// case "\x15\x01":
+			// 	value = "15"
+			// case "\x16\x01":
+			// 	value = "16"
+			// case "\x17\x01":
+			// 	value = "17"
+			// case "\x18\x01":
+			// 	value = "18"
+			// case "\x19\x01":
+			// 	value = "19"
+			// case "\x1a\x01":
+			// 	value = "1a"
+			// case "\x1b\x01":
+			// 	value = "1b"
+			// case "\x1c\x01":
+			// 	value = "1c"
+			// case "\x1d\x01":
+			// 	value = "1d"
+			// case "\x1e\x01":
+			// 	value = "1e"
+			// case "\x1f\x01":
+			// 	value = "1f"
+			// case " \x01":
+			// 	value = "20"
+			// case "!\x01":
+			// 	value = "21"
+			// }
+			if dataTemp != "" && len(dataTemp) > 26 {
+				switch dataTemp[18:26] {
+				case "D3E9C0D6":
+					value = "娱乐"
+				case "D0DDCFA2":
+					value = "休息"
+				case "C9CFB0E0":
+					value = "上班"
+				case "CFC2B0E0":
+					value = "下班"
+				case "B0ECB9AB":
+					value = "办公"
+				}
 			}
-		}
-		switch contentCommand.SceneID {
-		case 1:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftUpAddScene
-			bPublish = true
-		case 2:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddScene
-			bPublish = true
-		case 3:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftDownAddScene
-			bPublish = true
-		case 4:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightUpAddScene
-			bPublish = true
-		case 5:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddScene
-			bPublish = true
-		case 6:
-			key = iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightDownAddScene
-			bPublish = true
-		}
-	}
-
-	params[key] = value
-	if bPublish {
-		if constant.Constant.Iotware {
-			iotsmartspace.PublishRPCRspIotware(terminalInfo.DevEUI, message, msgID)
-		} else if constant.Constant.Iotedge {
-			iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply, params, msgID)
+			switch contentCommand.SceneID {
+			case 1:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftUpAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			case 2:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftMiddleAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			case 3:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyLeftDownAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			case 4:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightUpAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			case 5:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightMiddleAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			case 6:
+				iotsmartspace.Publish(iotsmartspace.TopicZigbeeserverIotsmartspaceProperty, iotsmartspace.MethodPropertyDownReply,
+					iotsmartspace.Honyar6SceneSwitch005f0c3bPropertyRightDownAddSceneRsp{DevEUI: terminalInfo.DevEUI, Code: code, Message: message, AddScene: value}, msgID)
+			}
 		}
 	}
 }

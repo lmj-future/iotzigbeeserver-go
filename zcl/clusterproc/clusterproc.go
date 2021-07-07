@@ -70,6 +70,9 @@ func ClusterProc(terminalInfo config.TerminalInfo, srcEndpoint uint8, zclFrame *
 	case "HONYARScenes":
 		// 处理HONYAR私有属性Scenes消息，0xfe05
 		honyar.ScenesProc(terminalInfo, zclFrame)
+	case "HONYARPM25Measurement":
+		// 处理HONYAR私有属性PM25Measurement消息，0xfe02
+		honyar.PM25MeasurementProc(terminalInfo, zclFrame)
 	case "MAILEKEMeasurement":
 		// 处理MAILEKE私有属性Measurement消息，0x0415
 		maileke.MeasurementProc(terminalInfo, zclFrame)

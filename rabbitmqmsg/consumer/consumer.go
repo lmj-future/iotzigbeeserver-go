@@ -15,6 +15,7 @@ import (
 	"github.com/h3c/iotzigbeeserver-go/publicfunction"
 	"github.com/h3c/iotzigbeeserver-go/zcl/common"
 	"github.com/h3c/iotzigbeeserver-go/zcl/zclmsgdown"
+	"github.com/lib/pq"
 	"github.com/streadway/amqp"
 )
 
@@ -110,6 +111,9 @@ func pushTerminalInfo(dataList []firstFloorData, terminalInfo terminalinfo,
 func sortTerminalInfoList(terminalInfoList []config.TerminalInfo) []firstFloorData {
 	dataList := []firstFloorData{}
 	for _, v := range terminalInfoList {
+		if !v.IsExist || v.TmnType == "invalidType" {
+			continue
+		}
 		var terminalInfo terminalinfo = terminalinfo{}
 		terminalInfo.DevEUI = v.DevEUI
 		terminalInfo.FirmTopic = v.FirmTopic + "（" + v.ManufacturerName + "）"
@@ -163,19 +167,22 @@ func sortTerminalInfoList(terminalInfoList []config.TerminalInfo) []firstFloorDa
 			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "插座", "16A智能墙插")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalHumanDetector,
-			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM:
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "人体红外探测器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalDoorSensor,
 			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "门磁")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalSmokeFireDetector,
-			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM:
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "烟火灾探测器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalWaterDetector,
 			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "水浸探测器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalGasDetector,
-			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM:
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "可燃气体探测器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalHumitureDetector,
 			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
@@ -183,7 +190,8 @@ func sortTerminalInfoList(terminalInfoList []config.TerminalInfo) []firstFloorDa
 		case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "传感器", "一氧化碳探测器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalVoiceLightDetector,
-			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
+			constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice,
+			constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "报警器", "声光报警器")
 		case constant.Constant.TMNTYPE.SENSOR.ZigbeeTerminalEmergencyButton:
 			dataList = pushTerminalInfo(dataList, terminalInfo, "报警器", "无线紧急按钮")
@@ -317,6 +325,449 @@ func heimanIRControlEMGetIDAndKeyCodeList(devEUI string, msgID interface{}) {
 		MsgID:       msgID,
 	})
 }
+func procTestTerminalJoin(body map[string]interface{}) rabbitmq.Response {
+	response := rabbitmq.Response{}
+	if body["devEUI"].(string) == "" || body["nwkAddr"].(string) == "" || body["tmnType"].(string) == "" || body["ACMac"].(string) == "" ||
+		body["APMac"].(string) == "" || body["T300ID"].(string) == "" || body["moduleID"].(string) == "" || body["shopId"].(string) == "" ||
+		body["userName"].(string) == "" {
+		response.Code = 1
+		response.Message = "params is invalid"
+		return response
+	}
+	terminalInfo := config.TerminalInfo{
+		DevEUI:       body["devEUI"].(string),
+		NwkAddr:      body["nwkAddr"].(string),
+		TmnType:      body["tmnType"].(string),
+		ACMac:        body["ACMac"].(string),
+		FirstAddr:    publicfunction.Transport16StringToString(body["ACMac"].(string)),
+		APMac:        body["APMac"].(string),
+		SecondAddr:   publicfunction.Transport16StringToString(body["APMac"].(string)),
+		T300ID:       body["T300ID"].(string),
+		ThirdAddr:    body["T300ID"].(string),
+		ModuleID:     body["moduleID"].(string),
+		ProfileID:    "ZHA",
+		Online:       true,
+		IsDiscovered: true,
+		IsExist:      true,
+		IsNeedBind:   true,
+		IsReadBasic:  true,
+	}
+	terminalInfo.TmnName = terminalInfo.SecondAddr + "-" + terminalInfo.DevEUI[6:]
+	switch body["tmnType"].(string) {
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalCOSensorEM,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalGASSensorEM,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRSensorEM,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalPIRILLSensorEF30,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmokeSensorEM,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWaterSensorEM,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalDoorSensorEF30:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0009", "0500"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalGASSensorHY0022,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSmokeSensorHY0024,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPIRSensorHY0027:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0009", "0500"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalESocket,
+		constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSmartPlug:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006", "0702"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HEIMAN"
+		terminalInfo.Attribute.Status = []string{"OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF"}
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2AQEM:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0009", "0402", "0405", "042a", "042b", "fc81"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0021"},
+				SrcEndpoint: "f2",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "f2"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "f2"}
+		terminalInfo.EndpointCount = 2
+		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW1LEFR30:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HEIMAN"
+		terminalInfo.Attribute.Status = []string{"OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF"}
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW2LEFR30:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "02",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "02"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "02"}
+		terminalInfo.EndpointCount = 2
+		terminalInfo.ManufacturerName = "HEIMAN"
+		terminalInfo.Attribute.Status = []string{"OFF", "OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF", "OFF"}
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHS2SW3LEFR30:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "02",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "03",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "02", "03"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "02", "03"}
+		terminalInfo.EndpointCount = 3
+		terminalInfo.ManufacturerName = "HEIMAN"
+		terminalInfo.Attribute.Status = []string{"OFF", "OFF", "OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF", "OFF", "OFF"}
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalHTEM:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0402"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0405"},
+				SrcEndpoint: "02",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "02"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "02"}
+		terminalInfo.EndpointCount = 2
+		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalPMTSensor0001112b:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0402", "0405"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalSceneSwitchEM30:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HEIMAN.ZigbeeTerminalWarningDevice:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0502"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HEIMAN"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalWarningDevice005b0e12:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0001", "0502"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c3c,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocket000a0c55,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0105,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSocketHY0106:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006", "0702"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+		terminalInfo.Attribute.Status = []string{"OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF"}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitch00500c32,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalSingleSwitchHY0141:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+		terminalInfo.Attribute.Status = []string{"OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF"}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitch00500c33,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalDoubleSwitchHY0142:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "02",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "02"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "02"}
+		terminalInfo.EndpointCount = 2
+		terminalInfo.ManufacturerName = "HONYAR"
+		terminalInfo.Attribute.Status = []string{"OFF", "OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF", "OFF"}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitch00500c35,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminalTripleSwitchHY0143:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "02",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+			{
+				ClusterID:   []string{"0006"},
+				SrcEndpoint: "03",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01", "02", "03"}
+		terminalInfo.EndpointPG = pq.StringArray{"01", "02", "03"}
+		terminalInfo.EndpointCount = 3
+		terminalInfo.ManufacturerName = "HONYAR"
+		terminalInfo.Attribute.Status = []string{"OFF", "OFF", "OFF"}
+		terminalInfo.Attribute.StatusPG = pq.StringArray{"OFF", "OFF", "OFF"}
+	case constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal1SceneSwitch005f0cf1,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal2SceneSwitch005f0cf3,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal3SceneSwitch005f0cf2,
+		constant.Constant.TMNTYPE.HONYAR.ZigbeeTerminal6SceneSwitch005f0c3b:
+		terminalInfo.BindInfo = []config.BindInfo{
+			{
+				ClusterID:   []string{"fe05"},
+				SrcEndpoint: "01",
+				DstEndpoint: "ff",
+				DstAddrMode: "03",
+				DstAddress:  "ffffffffffffffff",
+			},
+		}
+		bindInfoByte, _ := json.Marshal(terminalInfo.BindInfo)
+		terminalInfo.BindInfoPG = string(bindInfoByte)
+		terminalInfo.Endpoint = []string{"01"}
+		terminalInfo.EndpointPG = pq.StringArray{"01"}
+		terminalInfo.EndpointCount = 1
+		terminalInfo.ManufacturerName = "HONYAR"
+	default:
+	}
+	if constant.Constant.Iotprivate {
+		tmnTypeInfo := publicfunction.HTTPRequestTerminalTypeByAlias(terminalInfo.ManufacturerName + "_" + terminalInfo.TmnType)
+		if tmnTypeInfo != nil {
+			type tmnList struct {
+				TmnName   string `json:"tmnName"`
+				TmnDevSN  string `json:"tmnDevSN"`
+				AddSource string `json:"addSource"`
+			}
+			type tmnInfo struct {
+				FirmName     string    `json:"firmName"`
+				TerminalType string    `json:"terminalType"`
+				SceneID      string    `json:"sceneID"`
+				TenantID     string    `json:"tenantID"`
+				TmnList      []tmnList `json:"tmnList"`
+			}
+			tmnInfoTemp := tmnInfo{
+				FirmName:     tmnTypeInfo.FirmName,
+				TerminalType: tmnTypeInfo.TerminalType,
+				SceneID:      body["shopId"].(string),
+				TenantID:     body["userName"].(string),
+				TmnList: []tmnList{
+					{
+						TmnName:   terminalInfo.TmnName,
+						TmnDevSN:  terminalInfo.DevEUI,
+						AddSource: "自动上线",
+					},
+				},
+			}
+			tmnInfoByte, _ := json.Marshal(tmnInfoTemp)
+			if publicfunction.HTTPRequestAddTerminal(terminalInfo.DevEUI, tmnInfoByte) {
+				httpTerminalInfo := publicfunction.HTTPRequestTerminalInfo(terminalInfo.DevEUI, "ZHA")
+				if httpTerminalInfo != nil {
+					if constant.Constant.UsePostgres {
+					} else {
+						terminalInfo.OIDIndex = httpTerminalInfo.TmnOIDIndex
+						terminalInfo.ScenarioID = httpTerminalInfo.SceneID
+						terminalInfo.UserName = httpTerminalInfo.TenantID
+						terminalInfo.FirmTopic = httpTerminalInfo.FirmTopic
+						terminalInfo.ProfileID = httpTerminalInfo.LinkType
+						terminalInfo.TmnType2 = httpTerminalInfo.TmnType
+						terminalInfo.IsExist = true
+						models.CreateTerminal(terminalInfo)
+					}
+					publicfunction.TerminalOnline(terminalInfo.DevEUI, true)
+				}
+			}
+		}
+	}
+	return response
+}
 
 // ConsumerByIotwebserver 处理来自iotwebserver的消息
 func (r *RabbitMQConnect) ConsumerByIotwebserver(msg amqp.Delivery) (rabbitmq.Response, error) {
@@ -326,7 +777,7 @@ func (r *RabbitMQConnect) ConsumerByIotwebserver(msg amqp.Delivery) (rabbitmq.Re
 			globallogger.Log.Errorln("ConsumerByIotwebserver err :", err)
 		}
 	}()
-	globallogger.Log.Warnf("[RabbitMQ]Receive msg: %+v\n", string(msg.Body))
+	globallogger.Log.Warnf("[RabbitMQ]Receive msg: %+v", string(msg.Body))
 	response := rabbitmq.Response{}
 	httpMsg := httpMsg{}
 	json.Unmarshal(msg.Body, &httpMsg)
@@ -347,6 +798,8 @@ func (r *RabbitMQConnect) ConsumerByIotwebserver(msg amqp.Delivery) (rabbitmq.Re
 			heimanIRControlEMCreateID(httpMsg.Query["devEUI"].(string), httpMsg.Query["ModelType"].(string), 1)
 		case "/iotzigbeeurl/getIDAndKeyCodeList":
 			heimanIRControlEMGetIDAndKeyCodeList(httpMsg.Query["devEUI"].(string), 1)
+		case "/iotzigbeeurl/test/terminalJoin":
+			response = procTestTerminalJoin(httpMsg.Body)
 		}
 	}
 	return response, nil
